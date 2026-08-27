@@ -1,0 +1,27 @@
+# Entorno
+.env
+*.local
+
+# Node
+node_modules/
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Java
+target/
+*.class
+
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
