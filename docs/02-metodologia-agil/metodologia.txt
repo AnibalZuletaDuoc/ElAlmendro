@@ -1,0 +1,27 @@
+La metodología Agile Scrum es un marco de trabajo ágil que divide los proyectos complejos en ciclos cortos llamados sprints para entregar valor de forma incremental.
+
+Roles Principales
+
+Product Owner: Define las prioridades y representa las necesidades del cliente.
+
+Scrum Master: Facilita el proceso y elimina los obstáculos del equipo.
+
+Equipo de Desarrollo: Ejecuta las tareas para construir el producto.
+
+Artefactos
+
+Product Backlog: Lista general con todas las tareas y requisitos del proyecto.
+
+Sprint Backlog: Lista de tareas seleccionadas para el ciclo actual.
+
+Incremento: El resultado funcional de cada sprint.
+
+Eventos o Ceremonias
+
+Sprint Planning: Reunión para planificar el trabajo del ciclo.
+
+Daily Scrum: Reunión diaria de 15 minutos para coordinar al equipo.
+
+Sprint Review: Revisión del trabajo completado al final del ciclo.
+
+Retrospectiva: Análisis interno para mejorar el proceso en el futuro.
