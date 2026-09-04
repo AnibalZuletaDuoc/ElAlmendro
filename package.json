@@ -23,6 +23,7 @@
     "setup": "npm install && npm run infra:up && npm run db:migrate && npm run db:seed",
     "dev:api": "npm run dev -w @timeflow/api",
     "dev:web": "npm run dev -w @timeflow/web",
-    "infra:tools": "docker compose -f docker/docker-compose.yml --env-file .env --profile tools up -d adminer"
+    "infra:tools": "docker compose -f docker/docker-compose.yml --env-file .env --profile tools up -d adminer",
+    "usuario:crear": "npm run usuario:crear -w @timeflow/api --"
   }
 }

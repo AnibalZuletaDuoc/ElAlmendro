@@ -7,6 +7,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { JornadaModule } from './modules/jornada/jornada.module';
 import { ActividadesModule } from './modules/actividades/actividades.module';
 import { SesionesModule } from './modules/sesiones/sesiones.module';
+import { ReportesModule } from './modules/reportes/reportes.module';
+import { NodosModule } from './modules/nodos/nodos.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 /**
  * Raiz de la capa de negocio.
@@ -24,8 +27,10 @@ import { SesionesModule } from './modules/sesiones/sesiones.module';
     JornadaModule,
     ActividadesModule,
     SesionesModule,
-    // NodosModule, EvidenciasModule, ReportesModule, HistorialModule,
-    // DashboardModule, NotificacionesModule, UsuariosModule,
+    ReportesModule,
+    NodosModule,
+    DashboardModule,
+    // EvidenciasModule, HistorialModule, NotificacionesModule, UsuariosModule,
   ],
   controllers: [SaludController],
 })

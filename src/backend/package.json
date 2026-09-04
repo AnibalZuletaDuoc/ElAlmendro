@@ -13,7 +13,8 @@
     "prisma:deploy": "dotenv -e ../../.env -- prisma migrate deploy && npm run prisma:reglas",
     "prisma:reglas": "dotenv -e ../../.env -- prisma db execute --file prisma/sql/reglas-integridad.sql --schema prisma/schema.prisma",
     "prisma:seed": "dotenv -e ../../.env -- ts-node prisma/seed.ts",
-    "prisma:studio": "dotenv -e ../../.env -- prisma studio"
+    "prisma:studio": "dotenv -e ../../.env -- prisma studio",
+    "usuario:crear": "dotenv -e ../../.env -- ts-node prisma/crear-usuario.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
