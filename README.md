@@ -78,12 +78,37 @@ npm run dev:web
 
 ### Usuarios de prueba
 
-| Correo | Clave | Rol |
-|---|---|---|
-| `admin@timeflow.cl` | `Timeflow2026!` | Administrador |
-| `trabajador@timeflow.cl` | `Timeflow2026!` | Trabajador |
+| Correo | Clave | Rol | Nombre |
+|---|---|---|---|
+| `admin@timeflow.cl` | `Timeflow2026!` | Administrador | Administrador TimeFlow |
+| `trabajador@timeflow.cl` | `Timeflow2026!` | Trabajador | Camila Soto |
+| `trabajador2@timeflow.cl` | `Timeflow2026!` | Trabajador | Diego Fuentes |
+
+Los datos iniciales incluyen tres semanas de historial de trabajo, porque el
+calendario y los reportes carecen de sentido sobre una base vacia: mostrarian
+cero en todas partes y seria imposible saber si funcionan.
+
+### Crear un usuario nuevo
+
+Mientras no exista el modulo `usuarios` con su pantalla de administracion:
+
+```bash
+npm run usuario:crear -- correo@timeflow.cl "Nombre Completo" LaClave123 TRABAJADOR
+```
+
+El rol es opcional, por defecto `TRABAJADOR`. El script calcula el hash Argon2id
+de la contrasena: un usuario insertado a mano con la contrasena en texto plano
+nunca podria iniciar sesion.
 
 ### Servicios locales
+
+| Pantalla | Ruta |
+|---|---|
+| Inicio de sesión | `/login` |
+| Mis actividades y cronómetro | `/panel` |
+| Calendario de horas | `/calendario` |
+| Mapa de nodos | `/nodos` |
+| Reportes de horas | `/reportes` |
 
 | Servicio | URL |
 |---|---|
@@ -146,21 +171,21 @@ Norma del equipo: **ningún módulo importa el repositorio de otro.** La
 comunicación entre módulos ocurre por servicios públicos o por eventos de
 dominio. Esto permite trabajar en paralelo sin pisarse.
 
-### Módulos y su historia de usuario
+### Módulos y su estado
 
-| Módulo | Historia | Responsabilidad |
+| Módulo | Historia | Estado |
 |---|---|---|
-| `auth` | US-01 | Login, emisión y rotación de tokens |
-| `usuarios` | — | Personas, roles, activación |
-| `jornada` | US-02 | Entrada, salida, cierre automático |
-| `actividades` | US-03, US-04 | Creación, asignación, transiciones |
-| `sesiones` | — | Inicio, pausa, cierre, autocierre |
-| `nodos` | US-05, US-06 | Árbol de nodos y derivaciones |
-| `evidencias` | — | URL firmadas, validación, SHA-256 |
-| `reportes` | US-07 | Horas por trabajador y período |
-| `historial` | US-08 | Bitácora de auditoría |
-| `dashboard` | US-09 | Indicadores y difusión en vivo |
-| `notificaciones` | — | Avisos internos |
+| `auth` | US-01 | Implementado — login, cookie httpOnly, guard |
+| `jornada` | US-02 | Implementado — entrada, salida, jornada vigente |
+| `actividades` | US-03, US-04 | Implementado — consulta con tiempo acumulado |
+| `sesiones` | — | Implementado — iniciar, pausar, reanudar, cerrar |
+| `reportes` | US-07 | Implementado — calendario, día, horas por trabajador |
+| `nodos` | US-05, US-06 | Implementado — árbol y derivaciones (solo lectura) |
+| `dashboard` | US-09 | Implementado — indicadores del panel |
+| `usuarios` | — | Pendiente — CRUD y administración de roles |
+| `evidencias` | — | Pendiente — URL firmadas, validación, SHA-256 |
+| `historial` | US-08 | Pendiente como módulo; la bitácora ya se escribe |
+| `notificaciones` | — | Pendiente — avisos internos |
 
 ## Reglas que no se negocian
 
