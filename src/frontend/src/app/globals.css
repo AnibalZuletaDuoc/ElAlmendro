@@ -5,5 +5,5 @@
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-[#faf7f2] text-slate-800 antialiased;
 }
