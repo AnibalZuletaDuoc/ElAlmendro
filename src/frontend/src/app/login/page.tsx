@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { api, ErrorApi, Usuario } from '@/lib/api';
 
 /** US-01 — inicio de sesion. */
@@ -31,72 +32,119 @@ export default function Login() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#faf7f2] p-6">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-orange-400 to-rose-400 text-2xl font-bold text-white shadow-sm">
-            T
+    <main className="relative min-h-screen overflow-hidden bg-slate-950">
+      <Image
+        src="/images/fondo-login.png"
+        alt=""
+        fill
+        priority
+        className="object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/20 via-slate-950/40 to-slate-950/90" />
+
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-10 lg:justify-end lg:pr-20">
+        <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900/70 p-9 shadow-2xl backdrop-blur-2xl">
+          <div className="mb-6 flex flex-col items-center gap-1">
+            <Image
+              src="/images/logo-timeflow.png"
+              alt="TimeFlow"
+              width={200}
+              height={140}
+              className="h-16 w-auto object-contain drop-shadow-[0_2px_12px_rgba(56,189,248,0.45)]"
+            />
           </div>
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-slate-800">TimeFlow</h1>
-            <p className="text-sm text-slate-500">
-              Registro de jornada y actividad
-            </p>
-          </div>
-        </div>
 
-        <form
-          onSubmit={enviar}
-          className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"
-        >
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">
-            Correo
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoFocus
-            placeholder="tu@correo.cl"
-            className="mb-4 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-          />
+          <h1 className="text-center text-xl font-bold text-white">
+            Iniciar sesión
+          </h1>
+          <p className="mb-7 text-center text-sm text-slate-400">
+            Ideas en movimiento
+          </p>
 
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">
-            Contrasena
-          </label>
-          <input
-            type="password"
-            value={contrasena}
-            onChange={(e) => setContrasena(e.target.value)}
-            required
-            placeholder="••••••••"
-            className="mb-5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-          />
+          <form onSubmit={enviar}>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-300">
+              Correo
+            </label>
+            <div className="relative mb-4">
+              <svg
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 7.5 12 13l9-5.5M4.5 5.5h15A1.5 1.5 0 0 1 21 7v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17V7a1.5 1.5 0 0 1 1.5-1.5Z"
+                />
+              </svg>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoFocus
+                placeholder="tu@correo.cl"
+                className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-3.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-sky-400/70 focus:bg-white/10 focus:ring-2 focus:ring-sky-400/20"
+              />
+            </div>
 
-          {error && (
-            <p
-              role="alert"
-              className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm text-rose-700"
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-300">
+              Contraseña
+            </label>
+            <div className="relative mb-6">
+              <svg
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M7.5 10.5V7.75a4.5 4.5 0 1 1 9 0v2.75M6 10.5h12a1 1 0 0 1 1 1v8.75a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V11.5a1 1 0 0 1 1-1Z"
+                />
+              </svg>
+              <input
+                type="password"
+                value={contrasena}
+                onChange={(e) => setContrasena(e.target.value)}
+                required
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-3.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-sky-400/70 focus:bg-white/10 focus:ring-2 focus:ring-sky-400/20"
+              />
+            </div>
+
+            {error && (
+              <p
+                role="alert"
+                className="mb-5 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3.5 py-2.5 text-sm text-rose-300"
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={enviando}
+              className="w-full rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 py-2.5 text-sm font-semibold uppercase tracking-wide text-white shadow-lg shadow-sky-500/30 transition hover:from-sky-400 hover:to-indigo-400 hover:shadow-sky-400/40 disabled:opacity-50"
             >
-              {error}
-            </p>
-          )}
+              {enviando ? 'Ingresando…' : 'Ingresar'}
+            </button>
+          </form>
 
-          <button
-            type="submit"
-            disabled={enviando}
-            className="w-full rounded-xl bg-slate-800 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50"
-          >
-            {enviando ? 'Ingresando…' : 'Ingresar'}
-          </button>
-        </form>
+          <div className="my-6 h-px bg-white/10" />
 
-        <p className="mt-5 text-center text-xs leading-relaxed text-slate-400">
-          Cuentas de demostracion<br />
-          trabajador@timeflow.cl · admin@timeflow.cl<br />
-          Clave: Timeflow2026!
-        </p>
+          <p className="text-center text-xs leading-relaxed text-slate-500">
+            Cuentas de demostración
+            <br />
+            trabajador@timeflow.cl · admin@timeflow.cl
+            <br />
+            Clave: Timeflow2026!
+          </p>
+        </div>
       </div>
     </main>
   );
