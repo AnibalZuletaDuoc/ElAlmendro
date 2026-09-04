@@ -3,6 +3,10 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './infra/prisma/prisma.module';
 import { SaludController } from './common/salud.controller';
+import { AuthModule } from './modules/auth/auth.module';
+import { JornadaModule } from './modules/jornada/jornada.module';
+import { ActividadesModule } from './modules/actividades/actividades.module';
+import { SesionesModule } from './modules/sesiones/sesiones.module';
 
 /**
  * Raiz de la capa de negocio.
@@ -16,9 +20,12 @@ import { SaludController } from './common/salud.controller';
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] }),
     ScheduleModule.forRoot(),
     PrismaModule,
-    // AuthModule, UsuariosModule, JornadaModule, ActividadesModule,
-    // SesionesModule, NodosModule, EvidenciasModule, ReportesModule,
-    // HistorialModule, DashboardModule, NotificacionesModule,
+    AuthModule,
+    JornadaModule,
+    ActividadesModule,
+    SesionesModule,
+    // NodosModule, EvidenciasModule, ReportesModule, HistorialModule,
+    // DashboardModule, NotificacionesModule, UsuariosModule,
   ],
   controllers: [SaludController],
 })
