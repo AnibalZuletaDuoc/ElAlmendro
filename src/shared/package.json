@@ -1,0 +1,8 @@
+{
+  "name": "@timeflow/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tipos y contratos compartidos entre la API y la web",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}

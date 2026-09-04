@@ -1,0 +1,359 @@
+// ---------------------------------------------------------------------------
+// TimeFlow - modelo de datos
+// Fuente: "Arquitectura del Sistema TimeFlow", seccion 4.4 (modelo conceptual)
+// y 4.4.1 (reglas de integridad exigidas al motor).
+//
+// Reglas transversales:
+//  - Todo instante se guarda como timestamptz normalizado a UTC (decision 2.3).
+//    La conversion a America/Santiago ocurre solo en la capa de presentacion.
+//  - El cronometro es autoritativo del servidor (decision 2.2): el cliente
+//    nunca envia duraciones, solo eventos de inicio y termino.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------- Enumeraciones -------------------------------
+
+enum Rol {
+  ADMINISTRADOR
+  TRABAJADOR
+}
+
+enum EstadoProyecto {
+  ACTIVO
+  PAUSADO
+  CERRADO
+}
+
+enum EstadoSprint {
+  PLANIFICADO
+  EN_CURSO
+  CERRADO
+}
+
+enum EstadoActividad {
+  PENDIENTE
+  EN_PROGRESO
+  BLOQUEADA
+  INCONCLUSA
+  COMPLETADA
+  CANCELADA
+}
+
+enum Prioridad {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum EstadoJornada {
+  ABIERTA
+  CERRADA
+}
+
+// Maquina de estado de la sesion de trabajo (decision 2.4).
+enum EstadoSesion {
+  ACTIVA
+  PAUSADA
+  CERRADA
+  AUTOCERRADA
+}
+
+enum DesenlaceSesion {
+  COMPLETADA
+  INCONCLUSA
+}
+
+enum RolEnProyecto {
+  LIDER
+  MIEMBRO
+  OBSERVADOR
+}
+
+// -------------------------------- Usuarios ---------------------------------
+
+model Usuario {
+  id             String   @id @default(uuid()) @db.Uuid
+  email          String   @unique
+  hashContrasena String
+  nombreCompleto String
+  rol            Rol      @default(TRABAJADOR)
+  zonaHoraria    String   @default("America/Santiago")
+  activo         Boolean  @default(true)
+  creadoEn       DateTime @default(now()) @db.Timestamptz(3)
+  actualizadoEn  DateTime @updatedAt @db.Timestamptz(3)
+
+  proyectosPropios      Proyecto[]          @relation("PropietarioProyecto")
+  membresias            MiembroProyecto[]
+  actividades           Actividad[]         @relation("ResponsableActividad")
+  jornadas              Jornada[]
+  sesiones              SesionTrabajo[]
+  evidenciasSubidas     Evidencia[]
+  comentarios           Comentario[]
+  derivacionesEmitidas  Derivacion[]        @relation("DerivacionDe")
+  derivacionesRecibidas Derivacion[]        @relation("DerivacionA")
+  auditoria             RegistroAuditoria[]
+  tokensRefresco        TokenRefresco[]
+
+  @@index([rol, activo])
+  @@map("usuarios")
+}
+
+// Rotacion de tokens de refresco con deteccion de reutilizacion (US-01).
+model TokenRefresco {
+  id             String    @id @default(uuid()) @db.Uuid
+  usuarioId      String    @db.Uuid
+  usuario        Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  hashToken      String    @unique
+  familiaId      String    @db.Uuid
+  expiraEn       DateTime  @db.Timestamptz(3)
+  revocadoEn     DateTime? @db.Timestamptz(3)
+  reemplazadoPor String?   @db.Uuid
+  creadoEn       DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([usuarioId, familiaId])
+  @@map("tokens_refresco")
+}
+
+// ------------------------ Proyecto / Sprint / Actividad --------------------
+
+model Proyecto {
+  id            String         @id @default(uuid()) @db.Uuid
+  nombre        String
+  descripcion   String?
+  propietarioId String         @db.Uuid
+  propietario   Usuario        @relation("PropietarioProyecto", fields: [propietarioId], references: [id])
+  estado        EstadoProyecto @default(ACTIVO)
+  creadoEn      DateTime       @default(now()) @db.Timestamptz(3)
+
+  miembros    MiembroProyecto[]
+  sprints     Sprint[]
+  actividades Actividad[]
+
+  @@map("proyectos")
+}
+
+model MiembroProyecto {
+  proyectoId    String        @db.Uuid
+  usuarioId     String        @db.Uuid
+  rolEnProyecto RolEnProyecto @default(MIEMBRO)
+  agregadoEn    DateTime      @default(now()) @db.Timestamptz(3)
+
+  proyecto Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([proyectoId, usuarioId])
+  @@map("miembros_proyecto")
+}
+
+model Sprint {
+  id           String       @id @default(uuid()) @db.Uuid
+  proyectoId   String       @db.Uuid
+  proyecto     Proyecto     @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  nombre       String
+  fechaInicio  DateTime     @db.Timestamptz(3)
+  fechaTermino DateTime     @db.Timestamptz(3)
+  objetivo     String?
+  estado       EstadoSprint @default(PLANIFICADO)
+
+  actividades Actividad[]
+
+  @@index([proyectoId, estado])
+  @@map("sprints")
+}
+
+model Actividad {
+  id         String   @id @default(uuid()) @db.Uuid
+  proyectoId String   @db.Uuid
+  proyecto   Proyecto @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  sprintId   String?  @db.Uuid
+  sprint     Sprint?  @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+
+  // Arbol de nodos auto-referenciado (decision 2.5): expresa composicion.
+  actividadPadreId String?     @db.Uuid
+  actividadPadre   Actividad?  @relation("ArbolNodos", fields: [actividadPadreId], references: [id], onDelete: SetNull)
+  hijas            Actividad[] @relation("ArbolNodos")
+
+  titulo           String
+  descripcion      String?
+  estado           EstadoActividad @default(PENDIENTE)
+  prioridad        Prioridad       @default(MEDIA)
+  responsableId    String          @db.Uuid
+  responsable      Usuario         @relation("ResponsableActividad", fields: [responsableId], references: [id])
+  minutosEstimados Int?
+  fechaLimite      DateTime?       @db.Timestamptz(3)
+  // Coordenadas del nodo en el mapa visual (React Flow) - US-05.
+  posicionNodo     Json?
+  orden            Int             @default(0)
+  creadoEn         DateTime        @default(now()) @db.Timestamptz(3)
+  actualizadoEn    DateTime        @updatedAt @db.Timestamptz(3)
+  // Unico borrado logico del sistema (seccion 4.4.1).
+  eliminadoEn      DateTime?       @db.Timestamptz(3)
+
+  subtareas           Subtarea[]
+  sesiones            SesionTrabajo[]
+  evidencias          Evidencia[]
+  comentarios         Comentario[]
+  derivaciones        Derivacion[]    @relation("ActividadDerivada")
+  derivacionesOrigen  Derivacion[]    @relation("NodoOrigen")
+  derivacionesDestino Derivacion[]    @relation("NodoDestino")
+
+  @@index([proyectoId, estado])
+  @@index([responsableId, estado])
+  @@index([actividadPadreId])
+  @@map("actividades")
+}
+
+model Subtarea {
+  id          String    @id @default(uuid()) @db.Uuid
+  actividadId String    @db.Uuid
+  actividad   Actividad @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+  titulo      String
+  completada  Boolean   @default(false)
+  orden       Int       @default(0)
+
+  @@index([actividadId])
+  @@map("subtareas")
+}
+
+// Hecho historico: quien traspaso que actividad, a quien, cuando y por que (US-06).
+model Derivacion {
+  id            String     @id @default(uuid()) @db.Uuid
+  actividadId   String     @db.Uuid
+  actividad     Actividad  @relation("ActividadDerivada", fields: [actividadId], references: [id], onDelete: Cascade)
+  nodoOrigenId  String?    @db.Uuid
+  nodoOrigen    Actividad? @relation("NodoOrigen", fields: [nodoOrigenId], references: [id], onDelete: SetNull)
+  nodoDestinoId String?    @db.Uuid
+  nodoDestino   Actividad? @relation("NodoDestino", fields: [nodoDestinoId], references: [id], onDelete: SetNull)
+  deUsuarioId   String     @db.Uuid
+  deUsuario     Usuario    @relation("DerivacionDe", fields: [deUsuarioId], references: [id])
+  aUsuarioId    String     @db.Uuid
+  aUsuario      Usuario    @relation("DerivacionA", fields: [aUsuarioId], references: [id])
+  // Obligatorio por criterio de aceptacion de US-06.
+  motivo        String
+  ocurridoEn    DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@index([actividadId, ocurridoEn])
+  @@map("derivaciones")
+}
+
+// ---------------------- Jornada / Sesion / Tramo ---------------------------
+
+// Eje temporal paralelo: presencia laboral del trabajador (US-02).
+model Jornada {
+  id                     String        @id @default(uuid()) @db.Uuid
+  usuarioId              String        @db.Uuid
+  usuario                Usuario       @relation(fields: [usuarioId], references: [id])
+  inicioEn               DateTime      @default(now()) @db.Timestamptz(3)
+  terminoEn              DateTime?     @db.Timestamptz(3)
+  estado                 EstadoJornada @default(ABIERTA)
+  cerradaAutomaticamente Boolean       @default(false)
+
+  sesiones SesionTrabajo[]
+
+  @@index([usuarioId, inicioEn])
+  @@map("jornadas")
+}
+
+// El cronometro pertenece a la sesion, no a la actividad (decision 2.1).
+model SesionTrabajo {
+  id                     String           @id @default(uuid()) @db.Uuid
+  actividadId            String           @db.Uuid
+  actividad              Actividad        @relation(fields: [actividadId], references: [id])
+  usuarioId              String           @db.Uuid
+  usuario                Usuario          @relation(fields: [usuarioId], references: [id])
+  jornadaId              String?          @db.Uuid
+  jornada                Jornada?         @relation(fields: [jornadaId], references: [id])
+  inicioEn               DateTime         @default(now()) @db.Timestamptz(3)
+  terminoEn              DateTime?        @db.Timestamptz(3)
+  estado                 EstadoSesion     @default(ACTIVA)
+  desenlace              DesenlaceSesion?
+  notaCierre             String?
+  cerradaAutomaticamente Boolean          @default(false)
+  creadoEn               DateTime         @default(now()) @db.Timestamptz(3)
+  actualizadoEn          DateTime         @updatedAt @db.Timestamptz(3)
+
+  tramos     TramoSesion[]
+  evidencias Evidencia[]
+
+  @@index([usuarioId, inicioEn])
+  @@index([actividadId])
+  @@map("sesiones_trabajo")
+}
+
+// Subdivision de una sesion por pausas: la duracion es la suma de los tramos.
+model TramoSesion {
+  id        String        @id @default(uuid()) @db.Uuid
+  sesionId  String        @db.Uuid
+  sesion    SesionTrabajo @relation(fields: [sesionId], references: [id], onDelete: Cascade)
+  // Denormalizado a proposito: lo exige la restriccion de exclusion de solape.
+  usuarioId String        @db.Uuid
+  inicioEn  DateTime      @default(now()) @db.Timestamptz(3)
+  terminoEn DateTime?     @db.Timestamptz(3)
+
+  @@index([sesionId])
+  @@index([usuarioId, inicioEn])
+  @@map("tramos_sesion")
+}
+
+// ------------------- Evidencia / Comentario / Auditoria --------------------
+
+model Evidencia {
+  id            String         @id @default(uuid()) @db.Uuid
+  actividadId   String?        @db.Uuid
+  actividad     Actividad?     @relation(fields: [actividadId], references: [id])
+  sesionId      String?        @db.Uuid
+  sesion        SesionTrabajo? @relation(fields: [sesionId], references: [id])
+  subidaPorId   String         @db.Uuid
+  subidaPor     Usuario        @relation(fields: [subidaPorId], references: [id])
+  // Key del objeto en el bucket S3 / MinIO.
+  claveObjeto   String         @unique
+  nombreArchivo String
+  tipoMime      String
+  tamanoBytes   Int
+  sha256        String
+  subidaEn      DateTime       @default(now()) @db.Timestamptz(3)
+
+  @@index([actividadId])
+  @@index([sesionId])
+  @@map("evidencias")
+}
+
+model Comentario {
+  id          String    @id @default(uuid()) @db.Uuid
+  actividadId String    @db.Uuid
+  actividad   Actividad @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+  autorId     String    @db.Uuid
+  autor       Usuario   @relation(fields: [autorId], references: [id])
+  cuerpo      String
+  creadoEn    DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([actividadId, creadoEn])
+  @@map("comentarios")
+}
+
+// Bitacora de solo escritura (US-08). Los permisos UPDATE y DELETE se revocan
+// al usuario de la aplicacion en la migracion de reglas de integridad.
+model RegistroAuditoria {
+  id            String   @id @default(uuid()) @db.Uuid
+  actorId       String?  @db.Uuid
+  actor         Usuario? @relation(fields: [actorId], references: [id])
+  accion        String
+  tipoEntidad   String
+  entidadId     String
+  valorAnterior Json?
+  valorNuevo    Json?
+  direccionIp   String?
+  ocurridoEn    DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([tipoEntidad, entidadId, ocurridoEn])
+  @@map("registros_auditoria")
+}

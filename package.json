@@ -1,0 +1,28 @@
+{
+  "name": "timeflow",
+  "private": true,
+  "version": "0.1.0",
+  "description": "TimeFlow - sistema web de monitoreo y registro de actividad de trabajadores remotos",
+  "engines": {
+    "node": ">=20 <21"
+  },
+  "workspaces": [
+    "src/backend",
+    "src/frontend",
+    "src/shared"
+  ],
+  "scripts": {
+    "infra:up": "docker compose -f docker/docker-compose.yml --env-file .env up -d",
+    "infra:down": "docker compose -f docker/docker-compose.yml --env-file .env down",
+    "infra:reset": "docker compose -f docker/docker-compose.yml --env-file .env down -v && docker compose -f docker/docker-compose.yml --env-file .env up -d",
+    "infra:logs": "docker compose -f docker/docker-compose.yml --env-file .env logs -f",
+    "db:migrate": "npm run prisma:migrate -w @timeflow/api",
+    "db:generate": "npm run prisma:generate -w @timeflow/api",
+    "db:seed": "npm run prisma:seed -w @timeflow/api",
+    "db:studio": "npm run prisma:studio -w @timeflow/api",
+    "setup": "npm install && npm run infra:up && npm run db:migrate && npm run db:seed",
+    "dev:api": "npm run dev -w @timeflow/api",
+    "dev:web": "npm run dev -w @timeflow/web",
+    "infra:tools": "docker compose -f docker/docker-compose.yml --env-file .env --profile tools up -d adminer"
+  }
+}
