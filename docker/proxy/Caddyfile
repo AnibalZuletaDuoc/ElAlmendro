@@ -1,0 +1,23 @@
+: 80 {
+	# Capa 1 del diagrama: proxy inverso / cortafuegos interno.
+	# Terminacion TLS, enrutamiento y cabeceras de seguridad.
+	# En desarrollo se trabaja directo contra los puertos 3000 y 4000; este
+	# archivo es la base del despliegue.
+
+	encode gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}
