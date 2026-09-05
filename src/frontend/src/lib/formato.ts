@@ -58,3 +58,19 @@ export function iniciales(nombre: string): string {
     .map((p) => p[0]?.toUpperCase() ?? '')
     .join('');
 }
+
+/** "jueves 4 de septiembre de 2026", para el encabezado del detalle de un dia. */
+export function fechaLarga(clave: string): string {
+  return new Date(`${clave}T12:00:00Z`).toLocaleDateString('es-CL', {
+    timeZone: ZONA,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+/** "6,5 h" — lectura compacta para las celdas del calendario. */
+export function horasBreves(segundos: number): string {
+  return `${(segundos / 3600).toFixed(1).replace('.', ',')} h`;
+}
