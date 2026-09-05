@@ -1,179 +1,353 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { DateTime } from 'luxon';
 import Marco from '@/components/Marco';
-import { api } from '@/lib/api';
-import { DiaCalendario, SesionDelDia } from '@/lib/tipos';
-import { duracion, hora } from '@/lib/formato';
+import Drawer from '@/components/ui/Drawer';
+import RejillaMes from '@/components/calendario/RejillaMes';
+import MatrizTrabajadores from '@/components/calendario/MatrizTrabajadores';
+import SemanaHoras from '@/components/calendario/SemanaHoras';
+import PanelDia from '@/components/calendario/PanelDia';
+import { api, ErrorApi } from '@/lib/api';
+import { esAdministrador, useSesion } from '@/lib/sesion';
+import { duracion, fechaLarga } from '@/lib/formato';
+import {
+  Detalle,
+  DiaDetalle,
+  hoyLocal,
+  rangoDelMes,
+  rangoDeSemana,
+  Resumen,
+  TrabajadorRef,
+  Vista,
+  ZONA,
+} from '@/lib/calendario';
 
-const MESES = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+const VISTAS: { valor: Vista; texto: string }[] = [
+  { valor: 'rejilla', texto: 'Mes' },
+  { valor: 'matriz', texto: 'Matriz' },
+  { valor: 'semana', texto: 'Semana' },
 ];
-const DIAS = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
 
-/** US-07 — calendario mensual con la intensidad de horas por dia. */
-export default function Calendario() {
-  const hoy = new Date();
-  const [ancla, setAncla] = useState(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
-  const [dias, setDias] = useState<DiaCalendario[]>([]);
-  const [seleccionado, setSeleccionado] = useState<string | null>(null);
-  const [detalle, setDetalle] = useState<SesionDelDia[]>([]);
+export default function Pagina() {
+  return (
+    <Suspense
+      fallback={
+        <main className="grid min-h-screen place-items-center bg-[#faf7f2] text-sm text-slate-400">
+          Cargando…
+        </main>
+      }
+    >
+      <Calendario />
+    </Suspense>
+  );
+}
 
-  const cargar = useCallback(async () => {
-    const desde = new Date(ancla.getFullYear(), ancla.getMonth(), 1);
-    const hasta = new Date(ancla.getFullYear(), ancla.getMonth() + 1, 1);
-    setDias(
-      await api.get<DiaCalendario[]>(
-        `/reportes/calendario?desde=${desde.toISOString()}&hasta=${hasta.toISOString()}`,
-      ),
-    );
-  }, [ancla]);
+/**
+ * US-07 — calendario del administrador.
+ *
+ * El estado vive en la URL —ancla, vista, dia y trabajador— y no en el
+ * componente: asi un dia concreto se puede recargar, marcar o enviar a otra
+ * persona, que es la forma natural de senalar "mira este dia".
+ */
+function Calendario() {
+  const router = useRouter();
+  const parametros = useSearchParams();
+
+  const pedida = parametros.get('vista');
+  const vista: Vista = VISTAS.some((v) => v.valor === pedida) ? (pedida as Vista) : 'rejilla';
+  const diaAbierto = parametros.get('dia');
+  const trabajador = parametros.get('trabajador');
+
+  const ancla = useMemo(() => {
+    const bruto = parametros.get('ancla');
+    const leida = bruto ? DateTime.fromISO(bruto, { zone: ZONA }) : null;
+    return leida?.isValid ? leida : DateTime.now().setZone(ZONA);
+  }, [parametros]);
+
+  const mes = useMemo(() => rangoDelMes(ancla), [ancla]);
+  const semana = useMemo(() => rangoDeSemana(ancla.toFormat('yyyy-MM-dd')), [ancla]);
+
+  const [equipo, setEquipo] = useState<TrabajadorRef[]>([]);
+  const [resumen, setResumen] = useState<Resumen | null>(null);
+  const [semanal, setSemanal] = useState<Detalle | null>(null);
+  const [detalle, setDetalle] = useState<DiaDetalle | null>(null);
+  const [cargandoDia, setCargandoDia] = useState(false);
+  const [foco, setFoco] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  /** Reescribe la URL conservando lo que no cambia. */
+  const navegar = useCallback(
+    (cambios: Record<string, string | null>) => {
+      const siguientes = new URLSearchParams(parametros.toString());
+      for (const [clave, valor] of Object.entries(cambios)) {
+        if (valor === null) siguientes.delete(clave);
+        else siguientes.set(clave, valor);
+      }
+      router.replace(`/calendario?${siguientes.toString()}`, { scroll: false });
+    },
+    [parametros, router],
+  );
+
+  const filtro = trabajador ? `&trabajadorId=${trabajador}` : '';
+
+  // El selector solo tiene sentido con la nomina completa, asi que se pide una
+  // vez y sin el filtro aplicado.
+  useEffect(() => {
+    api
+      .get<TrabajadorRef[]>('/usuarios/trabajadores')
+      .then(setEquipo)
+      .catch(() => setEquipo([]));
+  }, []);
 
   useEffect(() => {
-    cargar();
-  }, [cargar]);
+    let vigente = true;
+    api
+      .get<Resumen>(`/calendario/resumen?desde=${mes.desde}&hasta=${mes.hasta}${filtro}`)
+      .then((r) => {
+        if (!vigente) return;
+        setResumen(r);
+        setError(null);
+      })
+      .catch((e) => {
+        if (vigente) setError(mensaje(e));
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [mes.desde, mes.hasta, filtro]);
 
-  async function abrirDia(fecha: string) {
-    setSeleccionado(fecha);
-    setDetalle(await api.get<SesionDelDia[]>(`/reportes/dia?fecha=${fecha}`));
+  useEffect(() => {
+    if (vista !== 'semana') return;
+    let vigente = true;
+    api
+      .get<Detalle>(`/calendario/detalle?desde=${semana.desde}&hasta=${semana.hasta}${filtro}`)
+      .then((d) => {
+        if (!vigente) return;
+        setSemanal(d);
+        setError(null);
+      })
+      .catch((e) => {
+        if (vigente) setError(mensaje(e));
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [vista, semana.desde, semana.hasta, filtro]);
+
+  useEffect(() => {
+    if (!diaAbierto) {
+      setDetalle(null);
+      return;
+    }
+    let vigente = true;
+    setCargandoDia(true);
+    api
+      .get<Detalle>(`/calendario/detalle?desde=${diaAbierto}&hasta=${diaAbierto}${filtro}`)
+      .then((d) => {
+        if (vigente) setDetalle(d.dias[0] ?? null);
+      })
+      .catch((e) => {
+        if (vigente) setError(mensaje(e));
+      })
+      .finally(() => {
+        if (vigente) setCargandoDia(false);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [diaAbierto, filtro]);
+
+  /** En mes y matriz el paso es un mes; en la vista semanal, una semana. */
+  function mover(signo: 1 | -1) {
+    const movida =
+      vista === 'semana' ? ancla.plus({ weeks: signo }) : ancla.plus({ months: signo });
+    navegar({ ancla: movida.toFormat('yyyy-MM-dd') });
   }
 
-  // Celdas del mes, alineadas a una semana que parte el lunes.
-  const primero = new Date(ancla.getFullYear(), ancla.getMonth(), 1);
-  const relleno = (primero.getDay() + 6) % 7;
-  const total = new Date(ancla.getFullYear(), ancla.getMonth() + 1, 0).getDate();
-  const porDia = new Map(dias.map((d) => [d.dia, d]));
-  const maximo = Math.max(1, ...dias.map((d) => d.segundos));
-  const totalMes = dias.reduce((t, d) => t + d.segundos, 0);
-
-  function clave(n: number) {
-    const m = String(ancla.getMonth() + 1).padStart(2, '0');
-    return `${ancla.getFullYear()}-${m}-${String(n).padStart(2, '0')}`;
-  }
+  const totalMes = resumen?.dias.reduce((t, d) => t + d.segundosImputados, 0) ?? 0;
+  const diasConTrabajo = resumen?.dias.filter((d) => d.conRegistro > 0).length ?? 0;
+  const alertasMes = resumen?.dias.reduce((t, d) => t + d.alertas.total, 0) ?? 0;
 
   return (
     <Marco
       activo="/calendario"
       titulo="Calendario"
-      subtitulo="Horas registradas por dia"
+      subtitulo="Actividad registrada por dia"
       acciones={
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setAncla(new Date(ancla.getFullYear(), ancla.getMonth() - 1, 1))}
-            className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm hover:bg-white"
-          >
-            ‹
-          </button>
-          <span className="min-w-40 text-center text-sm font-semibold">
-            {MESES[ancla.getMonth()]} {ancla.getFullYear()}
-          </span>
-          <button
-            onClick={() => setAncla(new Date(ancla.getFullYear(), ancla.getMonth() + 1, 1))}
-            className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm hover:bg-white"
-          >
-            ›
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <SelectorTrabajador
+            equipo={equipo}
+            valor={trabajador}
+            onCambio={(id) => navegar({ trabajador: id })}
+          />
+
+          <div className="flex overflow-hidden rounded-xl border border-slate-300">
+            {VISTAS.map((v) => (
+              <button
+                key={v.valor}
+                onClick={() => navegar({ vista: v.valor })}
+                aria-pressed={vista === v.valor}
+                className={`px-3 py-1.5 text-sm transition ${
+                  vista === v.valor
+                    ? 'bg-orange-50 font-semibold text-orange-700'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {v.texto}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => mover(-1)}
+              aria-label={vista === 'semana' ? 'Semana anterior' : 'Mes anterior'}
+              className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm hover:bg-white"
+            >
+              ‹
+            </button>
+            <span className="min-w-44 text-center text-sm font-semibold first-letter:uppercase">
+              {vista === 'semana' ? rotulo(semana) : ancla.toFormat('LLLL yyyy', { locale: 'es' })}
+            </span>
+            <button
+              onClick={() => mover(1)}
+              aria-label={vista === 'semana' ? 'Semana siguiente' : 'Mes siguiente'}
+              className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm hover:bg-white"
+            >
+              ›
+            </button>
+            <button
+              onClick={() => navegar({ ancla: hoyLocal() })}
+              className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm hover:bg-white"
+            >
+              Hoy
+            </button>
+          </div>
         </div>
       }
     >
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <section className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Total del mes: <strong className="text-slate-800">{duracion(totalMes)}</strong>
-            </p>
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-              menos
-              <span className="h-3 w-3 rounded bg-emerald-100" />
-              <span className="h-3 w-3 rounded bg-emerald-300" />
-              <span className="h-3 w-3 rounded bg-emerald-500" />
-              <span className="h-3 w-3 rounded bg-emerald-700" />
-              mas
-            </div>
-          </div>
+      {error && (
+        <p role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          {error}
+        </p>
+      )}
 
-          <div className="mb-1 grid grid-cols-7 gap-1.5">
-            {DIAS.map((d) => (
-              <div key={d} className="pb-1 text-center text-[11px] font-medium text-slate-400">
-                {d}
-              </div>
-            ))}
-          </div>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-slate-500">
+          <span>
+            Total del mes: <strong className="font-mono text-slate-800">{duracion(totalMes)}</strong>
+          </span>
+          <span>
+            Dias con trabajo: <strong className="text-slate-800">{diasConTrabajo}</strong>
+          </span>
+          {alertasMes > 0 && (
+            <span className="text-amber-700">
+              ▲ <strong>{alertasMes}</strong> punto(s) por revisar
+            </span>
+          )}
+        </div>
 
-          <div className="grid grid-cols-7 gap-1.5">
-            {Array.from({ length: relleno }).map((_, i) => (
-              <div key={`v${i}`} />
-            ))}
+        {vista === 'rejilla' && (
+          <RejillaMes
+            mes={ancla}
+            dias={resumen?.dias ?? []}
+            seleccionado={diaAbierto}
+            onDia={(fecha) => navegar({ dia: fecha })}
+          />
+        )}
 
-            {Array.from({ length: total }).map((_, i) => {
-              const n = i + 1;
-              const k = clave(n);
-              const dato = porDia.get(k);
-              const razon = dato ? dato.segundos / maximo : 0;
-              const fondo =
-                !dato ? 'bg-slate-50 text-slate-300'
-                : razon > 0.75 ? 'bg-emerald-700 text-white'
-                : razon > 0.5 ? 'bg-emerald-500 text-white'
-                : razon > 0.25 ? 'bg-emerald-300 text-emerald-900'
-                : 'bg-emerald-100 text-emerald-800';
+        {vista === 'matriz' && (
+          <MatrizTrabajadores
+            mes={ancla}
+            trabajadores={resumen?.trabajadores ?? []}
+            celdas={resumen?.celdas ?? []}
+            seleccionado={diaAbierto}
+            onCelda={(fecha, id) => {
+              setFoco(id);
+              navegar({ dia: fecha });
+            }}
+          />
+        )}
 
-              return (
-                <button
-                  key={k}
-                  onClick={() => dato && abrirDia(k)}
-                  disabled={!dato}
-                  className={`aspect-square rounded-lg p-1.5 text-left transition ${fondo} ${
-                    dato ? 'hover:ring-2 hover:ring-orange-300' : 'cursor-default'
-                  } ${seleccionado === k ? 'ring-2 ring-orange-400' : ''}`}
-                >
-                  <span className="text-xs font-semibold">{n}</span>
-                  {dato && (
-                    <span className="mt-0.5 block text-[10px] leading-tight opacity-90">
-                      {(dato.segundos / 3600).toFixed(1)} h
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        {vista === 'semana' &&
+          (semanal ? (
+            <SemanaHoras
+              detalle={semanal}
+              seleccionado={diaAbierto}
+              onDia={(fecha) => navegar({ dia: fecha })}
+            />
+          ) : (
+            <p className="p-6 text-center text-sm text-slate-400">Cargando la semana…</p>
+          ))}
+      </section>
 
-        <aside className="w-full shrink-0 rounded-2xl border border-slate-200 bg-white p-5 lg:w-96">
-          <h2 className="mb-1 font-bold text-slate-800">
-            {seleccionado ? `Detalle del ${seleccionado}` : 'Detalle del dia'}
-          </h2>
-          <p className="mb-4 text-xs text-slate-400">
-            {seleccionado
-              ? `${detalle.length} sesion(es) registrada(s)`
-              : 'Selecciona un dia con registro para ver sus sesiones.'}
-          </p>
-
-          <div className="flex flex-col gap-2">
-            {detalle.map((s) => (
-              <div key={s.id} className="rounded-xl border border-slate-200 p-3">
-                <div className="mb-1 flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold leading-snug text-slate-800">
-                    {s.actividad}
-                  </p>
-                  <span className="shrink-0 font-mono text-xs text-slate-500">
-                    {duracion(s.segundos)}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500">
-                  {s.trabajador} · {hora(s.inicioEn)}
-                  {s.terminoEn ? ` – ${hora(s.terminoEn)}` : ' – en curso'}
-                </p>
-                {s.notaCierre && (
-                  <p className="mt-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-                    {s.notaCierre}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </aside>
-      </div>
+      <Drawer
+        abierto={!!diaAbierto}
+        titulo={diaAbierto ? fechaLarga(diaAbierto) : ''}
+        subtitulo={
+          detalle
+            ? `${detalle.resumen.sesiones} sesion(es) · ${detalle.resumen.conRegistro} trabajador(es) con registro`
+            : undefined
+        }
+        onCerrar={() => {
+          setFoco(null);
+          navegar({ dia: null });
+        }}
+      >
+        <PanelDia dia={detalle} cargando={cargandoDia} foco={foco} onFoco={setFoco} />
+      </Drawer>
     </Marco>
   );
+}
+
+/**
+ * Selector de trabajador, solo para el administrador.
+ *
+ * Va en un componente aparte porque `useSesion` necesita estar por debajo del
+ * proveedor que instala `Marco`, y quien renderiza `Marco` esta por encima.
+ * Ocultarlo no protege nada: el alcance real lo impone la API.
+ */
+function SelectorTrabajador({
+  equipo,
+  valor,
+  onCambio,
+}: {
+  equipo: TrabajadorRef[];
+  valor: string | null;
+  onCambio: (id: string | null) => void;
+}) {
+  const usuario = useSesion();
+  if (!esAdministrador(usuario) || equipo.length < 2) return null;
+
+  return (
+    <select
+      value={valor ?? ''}
+      onChange={(e) => onCambio(e.target.value || null)}
+      aria-label="Filtrar por trabajador"
+      className="rounded-xl border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-orange-400"
+    >
+      <option value="">Todo el equipo</option>
+      {equipo.map((w) => (
+        <option key={w.id} value={w.id}>
+          {w.nombre}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function rotulo({ desde, hasta }: { desde: string; hasta: string }): string {
+  const a = DateTime.fromISO(desde, { zone: ZONA });
+  const b = DateTime.fromISO(hasta, { zone: ZONA });
+  return a.month === b.month
+    ? `${a.day} – ${b.day} ${b.toFormat('LLL yyyy', { locale: 'es' })}`
+    : `${a.toFormat('d LLL', { locale: 'es' })} – ${b.toFormat('d LLL yyyy', { locale: 'es' })}`;
+}
+
+function mensaje(e: unknown): string {
+  // El 401 lo resuelve Marco devolviendo al inicio de sesion; aqui no aporta.
+  if (e instanceof ErrorApi && e.estado === 401) return '';
+  return e instanceof Error ? e.message : 'No se pudo cargar el calendario.';
 }
