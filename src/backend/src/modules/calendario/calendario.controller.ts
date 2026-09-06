@@ -19,7 +19,11 @@ export class CalendarioController {
    * dejaria los datos del equipo a un cambio de URL de distancia.
    */
   private alcance(u: UsuarioActual, pedido?: string): string | undefined {
-    if (u.rol !== 'ADMINISTRADOR') return u.id;
+    const puedeVerEquipo =
+      u.permisos?.includes('calendario:ver_equipo') ||
+      u.rol === 'ADMINISTRADOR' ||
+      u.rol === 'SUPERVISOR';
+    if (!puedeVerEquipo) return u.id;
     return pedido || undefined;
   }
 

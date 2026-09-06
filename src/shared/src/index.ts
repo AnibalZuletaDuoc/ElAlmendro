@@ -4,7 +4,7 @@
  * sean la unica definicion de los datos que cruzan la frontera HTTP.
  */
 
-export type Rol = 'ADMINISTRADOR' | 'TRABAJADOR';
+export * from './rbac';
 
 export type EstadoActividad =
   | 'PENDIENTE'

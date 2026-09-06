@@ -23,6 +23,7 @@ datasource db {
 
 enum Rol {
   ADMINISTRADOR
+  SUPERVISOR
   TRABAJADOR
 }
 
