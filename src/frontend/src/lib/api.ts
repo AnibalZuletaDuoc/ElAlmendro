@@ -1,3 +1,5 @@
+import { PermisoCodigo, Rol } from './rbac';
+
 /**
  * Cliente de la API.
  *
@@ -48,6 +50,15 @@ export const api = {
       method: 'POST',
       body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
     }),
+  patch: <T>(ruta: string, cuerpo?: unknown) =>
+    pedir<T>(ruta, {
+      method: 'PATCH',
+      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+    }),
+  delete: <T>(ruta: string) =>
+    pedir<T>(ruta, {
+      method: 'DELETE',
+    }),
 };
 
 // ------------------------------- tipos -------------------------------
@@ -56,7 +67,32 @@ export interface Usuario {
   id: string;
   email: string;
   nombreCompleto: string;
-  rol: 'ADMINISTRADOR' | 'TRABAJADOR';
+  rol: Rol;
+  permisos: PermisoCodigo[];
+}
+
+export interface UsuarioItem {
+  id: string;
+  email: string;
+  nombreCompleto: string;
+  rol: Rol;
+  zonaHoraria: string;
+  activo: boolean;
+  creadoEn: string;
+  actualizadoEn?: string;
+  permisos: PermisoCodigo[];
+  _count?: {
+    sesiones: number;
+    jornadas: number;
+    actividades: number;
+  };
+}
+
+export interface RolCatalogoItem {
+  codigo: Rol;
+  nombre: string;
+  descripcion: string;
+  permisos: readonly PermisoCodigo[];
 }
 
 export interface Subtarea {

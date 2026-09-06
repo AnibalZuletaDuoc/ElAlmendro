@@ -73,6 +73,17 @@ async function main() {
     },
   });
 
+  const supervisor = await prisma.usuario.upsert({
+    where: { email: 'supervisor@timeflow.cl' },
+    update: {},
+    create: {
+      email: 'supervisor@timeflow.cl',
+      hashContrasena: hash,
+      nombreCompleto: 'Valeria Miranda',
+      rol: (Rol as any).SUPERVISOR ?? 'SUPERVISOR',
+    },
+  });
+
   // ----------------------------------------------------------- proyecto
 
   let proyecto = await prisma.proyecto.findFirst({
@@ -285,6 +296,7 @@ async function main() {
 
   console.log('\n  Datos iniciales listos.\n');
   console.log(`    admin@timeflow.cl        / ${CLAVE_DEMO}   (administrador)`);
+  console.log(`    supervisor@timeflow.cl   / ${CLAVE_DEMO}   (Valeria Miranda - supervisor)`);
   console.log(`    trabajador@timeflow.cl   / ${CLAVE_DEMO}   (Camila Soto)`);
   console.log(`    trabajador2@timeflow.cl  / ${CLAVE_DEMO}   (Diego Fuentes)\n`);
 }

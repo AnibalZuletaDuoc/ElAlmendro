@@ -40,8 +40,8 @@ async function main() {
   }
 
   const rol = rolPedido.toUpperCase();
-  if (rol !== 'TRABAJADOR' && rol !== 'ADMINISTRADOR') {
-    abortar(`Rol no valido: "${rolPedido}". Usa TRABAJADOR o ADMINISTRADOR.`);
+  if (rol !== 'TRABAJADOR' && rol !== 'ADMINISTRADOR' && rol !== 'SUPERVISOR') {
+    abortar(`Rol no valido: "${rolPedido}". Usa TRABAJADOR, SUPERVISOR o ADMINISTRADOR.`);
   }
 
   const email = correo.toLowerCase().trim();

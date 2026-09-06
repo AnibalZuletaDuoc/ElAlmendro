@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { SignOptions } from 'jsonwebtoken';
 import * as argon2 from 'argon2';
+import { obtenerPermisosDeRol } from '../../common/rbac';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 
@@ -25,10 +26,16 @@ export class AuthService {
     });
 
     const generico = new UnauthorizedException('Correo o contrasena incorrectos.');
-    if (!usuario || !usuario.activo) throw generico;
+    if (!usuario) throw generico;
 
     const valida = await argon2.verify(usuario.hashContrasena, dto.contrasena);
     if (!valida) throw generico;
+
+    if (!usuario.activo) {
+      throw new UnauthorizedException('Cuenta suspendida por el administrador.');
+    }
+
+    const permisos = obtenerPermisosDeRol(usuario.rol);
 
     const token = await this.jwt.signAsync(
       {
@@ -36,6 +43,7 @@ export class AuthService {
         email: usuario.email,
         rol: usuario.rol,
         nombre: usuario.nombreCompleto,
+        permisos,
       },
       {
         secret: process.env.JWT_ACCESO_SECRET ?? process.env.JWT_ACCESS_SECRET,
@@ -63,6 +71,7 @@ export class AuthService {
         email: usuario.email,
         nombreCompleto: usuario.nombreCompleto,
         rol: usuario.rol,
+        permisos,
       },
     };
   }

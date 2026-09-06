@@ -1,21 +1,27 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { PERMISOS } from '../../common/rbac';
 import { ReportesService } from './reportes.service';
 import { JwtAuthGuard } from '../../common/jwt-auth.guard';
+import { PermisosGuard } from '../../common/guards/permisos.guard';
+import { ExigirPermisos } from '../../common/decorators/permisos.decorator';
 import { Usuario, UsuarioActual } from '../../common/usuario-actual.decorator';
 
 @ApiTags('reportes')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermisosGuard)
 @Controller('reportes')
 export class ReportesController {
   constructor(private readonly reportes: ReportesService) {}
 
   /**
-   * El administrador ve a todo el equipo; el trabajador, solo lo suyo. No basta
-   * con ocultarlo en la interfaz: el filtro se aplica aqui.
+   * Administradores y supervisores ven a todo el equipo; el trabajador, solo lo suyo.
    */
   private alcance(u: UsuarioActual): string | undefined {
-    return u.rol === 'ADMINISTRADOR' ? undefined : u.id;
+    const puedeVerEquipo =
+      u.permisos?.includes(PERMISOS.REPORTES_VER_EQUIPO) ||
+      u.rol === 'ADMINISTRADOR' ||
+      u.rol === 'SUPERVISOR';
+    return puedeVerEquipo ? undefined : u.id;
   }
 
   @Get('calendario')
@@ -37,8 +43,8 @@ export class ReportesController {
   }
 
   @Get('horas')
+  @ExigirPermisos(PERMISOS.REPORTES_VER_EQUIPO)
   horas(
-    @Usuario() u: UsuarioActual,
     @Query('desde') desde: string,
     @Query('hasta') hasta: string,
   ) {
@@ -46,7 +52,11 @@ export class ReportesController {
   }
 
   @Get('actividades')
-  actividades(@Query('desde') desde: string, @Query('hasta') hasta: string) {
+  @ExigirPermisos(PERMISOS.REPORTES_VER_EQUIPO)
+  actividades(
+    @Query('desde') desde: string,
+    @Query('hasta') hasta: string,
+  ) {
     return this.reportes.porActividad(new Date(desde), new Date(hasta));
   }
 }

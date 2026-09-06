@@ -3,22 +3,48 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { PERMISOS, PermisoCodigo } from '@/lib/rbac';
 import { api, ErrorApi, Usuario } from '@/lib/api';
 import { iniciales } from '@/lib/formato';
 import { ContextoSesion } from '@/lib/sesion';
 
-const SECCIONES = [
-  { href: '/panel', texto: 'Mis actividades' },
-  { href: '/calendario', texto: 'Calendario' },
-  { href: '/nodos', texto: 'Mapa de nodos' },
-  { href: '/reportes', texto: 'Reportes' },
+interface SeccionNav {
+  href: string;
+  texto: string;
+  permisoRequerido?: PermisoCodigo;
+}
+
+const SECCIONES: SeccionNav[] = [
+  {
+    href: '/panel',
+    texto: 'Mis actividades',
+    permisoRequerido: PERMISOS.ACTIVIDADES_VER_PROPIAS,
+  },
+  {
+    href: '/calendario',
+    texto: 'Calendario',
+    permisoRequerido: PERMISOS.CALENDARIO_VER_PROPIO,
+  },
+  {
+    href: '/nodos',
+    texto: 'Mapa de nodos',
+    permisoRequerido: PERMISOS.NODOS_VER_MAPA,
+  },
+  {
+    href: '/reportes',
+    texto: 'Reportes',
+    permisoRequerido: PERMISOS.REPORTES_VER_EQUIPO,
+  },
+  {
+    href: '/usuarios',
+    texto: 'Usuarios y Roles',
+    permisoRequerido: PERMISOS.USUARIOS_VER,
+  },
 ];
 
 /**
- * Marco comun de la aplicacion: barra lateral, cabecera y control de sesion.
- *
- * Verifica la sesion en un solo lugar. Si la cookie expiro, cualquier pantalla
- * devuelve al inicio de sesion sin repetir esa logica en cada una.
+ * Marco comun de la aplicacion: barra lateral adaptativa por RBAC,
+ * cabecera y control de sesion.
  */
 export default function Marco({
   activo,
@@ -65,8 +91,19 @@ export default function Marco({
     );
   }
 
-  // El provider envuelve todo el marco, no solo el contenido: `acciones` se
-  // pinta en la cabecera y tambien necesita saber quien inicio sesion.
+  // Filtrado RBAC: los trabajadores solo ven los módulos que tienen autorizados
+  const seccionesVisibles = SECCIONES.filter((s) => {
+    if (!s.permisoRequerido) return true;
+    return usuario?.permisos?.includes(s.permisoRequerido) ?? false;
+  });
+
+  const textoRol =
+    usuario?.rol === 'ADMINISTRADOR'
+      ? 'Administrador'
+      : usuario?.rol === 'SUPERVISOR'
+        ? 'Supervisor'
+        : 'Trabajador';
+
   return (
     <ContextoSesion.Provider value={usuario}>
       <div className="flex min-h-screen bg-[#faf7f2] text-slate-800">
@@ -81,7 +118,7 @@ export default function Marco({
             </div>
           </div>
 
-          {SECCIONES.map((s) => (
+          {seccionesVisibles.map((s) => (
             <Link
               key={s.href}
               href={s.href}
@@ -100,7 +137,7 @@ export default function Marco({
               {usuario?.nombreCompleto}
             </p>
             <p className="mb-2 px-3 text-[11px] text-slate-400">
-              {usuario?.rol === 'ADMINISTRADOR' ? 'Administrador' : 'Trabajador'}
+              {textoRol}
             </p>
             <button
               onClick={salir}

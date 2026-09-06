@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { obtenerPermisosDeRol } from './rbac';
 
 export const COOKIE_ACCESO = 'tf_acceso';
 
@@ -29,6 +30,7 @@ export class JwtAuthGuard implements CanActivate {
         email: carga.email,
         rol: carga.rol,
         nombreCompleto: carga.nombre,
+        permisos: obtenerPermisosDeRol(carga.rol),
       };
       return true;
     } catch {
