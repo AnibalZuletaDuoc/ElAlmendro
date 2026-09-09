@@ -56,7 +56,7 @@ export default function RejillaMes({
               <div
                 key={celda.fecha}
                 aria-hidden
-                className="min-h-24 rounded-lg border border-transparent p-1.5 text-xs text-slate-300"
+                className="min-h-24 rounded-lg border border-transparent p-1.5 text-xs text-slate-600"
               >
                 {celda.numero}
               </div>
@@ -77,9 +77,9 @@ export default function RejillaMes({
               aria-label={etiqueta(celda.fecha, dato)}
               className={`min-h-24 rounded-lg border p-1.5 text-left transition ${escala.clase} ${
                 activo
-                  ? 'cursor-pointer border-transparent hover:ring-2 hover:ring-orange-300'
-                  : 'cursor-default border-dashed border-slate-200'
-              } ${seleccionado === celda.fecha ? 'ring-2 ring-orange-400' : ''}`}
+                  ? 'cursor-pointer border-transparent hover:ring-2 hover:ring-sky-400/50'
+                  : 'cursor-default border-dashed border-white/10'
+              } ${seleccionado === celda.fecha ? 'ring-2 ring-sky-400' : ''}`}
             >
               <span className="flex items-start gap-1">
                 <span
@@ -118,7 +118,7 @@ export default function RejillaMes({
                   )}
                 </>
               ) : (
-                <span className="mt-1 block text-[10px] leading-tight text-slate-300">
+                <span className="mt-1 block text-[10px] leading-tight text-slate-600">
                   sin registro
                 </span>
               )}
@@ -127,8 +127,8 @@ export default function RejillaMes({
         })}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-3 text-[11px] text-slate-400">
-        <span className="font-medium text-slate-500">Horas por persona:</span>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 pt-3 text-[11px] text-slate-400">
+        <span className="font-medium text-slate-300">Horas por persona:</span>
         <span className="flex items-center gap-1.5">
           <span className={`h-3 w-3 rounded ${SIN_REGISTRO.muestra}`} />
           {SIN_REGISTRO.etiqueta}

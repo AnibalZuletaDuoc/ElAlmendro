@@ -15,12 +15,12 @@ import LineaTiempo, { EjeHoras } from './LineaTiempo';
 
 /** Estados de una sesion de trabajo, con su lectura y su color. */
 const ESTADO_SESION: Record<string, { texto: string; clase: string }> = {
-  ACTIVA: { texto: 'En curso', clase: 'text-sky-700 bg-sky-50 border-sky-200' },
-  PAUSADA: { texto: 'En pausa', clase: 'text-sky-700 bg-sky-50 border-sky-200' },
-  CERRADA: { texto: 'Cerrada', clase: 'text-slate-600 bg-slate-100 border-slate-200' },
+  ACTIVA: { texto: 'En curso', clase: 'text-sky-300 bg-sky-500/10 border-sky-500/30' },
+  PAUSADA: { texto: 'En pausa', clase: 'text-sky-300 bg-sky-500/10 border-sky-500/30' },
+  CERRADA: { texto: 'Cerrada', clase: 'text-slate-400 bg-white/5 border-white/10' },
   AUTOCERRADA: {
     texto: 'Autocerrada',
-    clase: 'text-amber-800 bg-amber-50 border-amber-300',
+    clase: 'text-amber-300 bg-amber-500/10 border-amber-500/30',
   },
 };
 
@@ -114,11 +114,11 @@ function Contenido({
       )}
 
       {alertas.length > 0 && (
-        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <p className="mb-1 text-xs font-semibold text-amber-900">
+        <div role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+          <p className="mb-1 text-xs font-semibold text-amber-300">
             ▲ {alertas.length} punto(s) por revisar
           </p>
-          <ul className="flex flex-col gap-0.5 text-[11px] text-amber-800">
+          <ul className="flex flex-col gap-0.5 text-[11px] text-amber-200/80">
             {alertas.map((a, i) => (
               <li key={i}>· {a}</li>
             ))}
@@ -140,21 +140,21 @@ function Contenido({
         {visibles.map((w) => (
           <div key={w.id}>
             <div className="mb-2 flex items-baseline gap-2">
-              <h3 className="text-sm font-bold text-slate-800">{w.nombre}</h3>
-              <span className="font-mono text-[11px] text-slate-400">
+              <h3 className="text-sm font-bold text-white">{w.nombre}</h3>
+              <span className="font-mono text-[11px] text-slate-500">
                 {duracion(w.segundosImputados)}
                 {w.jornada && ` · jornada ${duracion(w.segundosPresencia)}`}
               </span>
             </div>
 
             {w.jornada && !w.jornada.terminoEn && (
-              <p className="mb-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+              <p className="mb-2 rounded-lg bg-amber-500/10 px-2 py-1 text-[11px] text-amber-300">
                 Jornada abierta desde las {hora(w.jornada.inicioEn)}: nunca se marco la salida.
               </p>
             )}
 
             {w.sesiones.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-xs text-slate-400">
+              <p className="rounded-xl border border-dashed border-white/15 p-4 text-center text-xs text-slate-500">
                 {w.jornada ? 'Jornada sin sesiones cronometradas.' : 'Sin registro este dia.'}
               </p>
             ) : (
@@ -189,21 +189,21 @@ function Tarjeta({
 }) {
   const estado = ESTADO_SESION[sesion.estado] ?? {
     texto: sesion.estado,
-    clase: 'text-slate-600 bg-slate-100 border-slate-200',
+    clase: 'text-slate-400 bg-white/5 border-white/10',
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 p-3">
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
       <div className="mb-1 flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold leading-snug text-slate-800">{sesion.actividad}</p>
-        <span className="shrink-0 font-mono text-xs text-slate-500">
+        <p className="text-sm font-semibold leading-snug text-white">{sesion.actividad}</p>
+        <span className="shrink-0 font-mono text-xs text-slate-400">
           {duracion(sesion.segundos)}
         </span>
       </div>
 
-      <p className="text-[11px] text-slate-400">{sesion.proyecto}</p>
+      <p className="text-[11px] text-slate-500">{sesion.proyecto}</p>
 
-      <p className="mt-1 font-mono text-xs text-slate-500">
+      <p className="mt-1 font-mono text-xs text-slate-400">
         {hora(sesion.inicioEn)}
         {sesion.terminoEn ? ` – ${hora(sesion.terminoEn)}` : ' – en curso'}
       </p>
@@ -211,16 +211,16 @@ function Tarjeta({
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <Insignia clase={estado.clase}>{estado.texto}</Insignia>
         {sesion.desenlace === 'COMPLETADA' && (
-          <Insignia clase="text-emerald-700 bg-emerald-50 border-emerald-200">Completada</Insignia>
+          <Insignia clase="text-emerald-300 bg-emerald-500/10 border-emerald-500/30">Completada</Insignia>
         )}
         {sesion.desenlace === 'INCONCLUSA' && (
-          <Insignia clase="text-orange-700 bg-orange-50 border-orange-200">Inconclusa</Insignia>
+          <Insignia clase="text-orange-300 bg-orange-500/10 border-orange-500/30">Inconclusa</Insignia>
         )}
         {sesion.tramos.length > 1 && (
           <button
             onClick={onAlternar}
             aria-expanded={abierta}
-            className="rounded-full border border-slate-200 px-2 py-0.5 text-[11px] text-slate-500 transition hover:bg-slate-50"
+            className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-slate-400 transition hover:bg-white/5"
           >
             {sesion.tramos.length} tramos {abierta ? '▴' : '▾'}
           </button>
@@ -228,7 +228,7 @@ function Tarjeta({
       </div>
 
       {abierta && (
-        <ul className="mt-2 flex flex-col gap-0.5 border-t border-slate-100 pt-2 font-mono text-[11px] text-slate-500">
+        <ul className="mt-2 flex flex-col gap-0.5 border-t border-white/10 pt-2 font-mono text-[11px] text-slate-400">
           {sesion.tramos.map((t, i) => (
             <li key={i}>
               {hora(t.inicioEn)}
@@ -239,7 +239,7 @@ function Tarjeta({
       )}
 
       {sesion.notaCierre && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+        <p className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1 text-[11px] text-amber-300">
           {sesion.notaCierre}
         </p>
       )}
@@ -262,8 +262,8 @@ function Chip({
       aria-pressed={activo}
       className={`rounded-full border px-3 py-1 text-[11px] font-medium transition ${
         activo
-          ? 'border-orange-300 bg-orange-50 text-orange-700'
-          : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+          ? 'border-sky-400/40 bg-sky-500/15 text-sky-300'
+          : 'border-white/15 text-slate-400 hover:bg-white/5'
       }`}
     >
       {children}

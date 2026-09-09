@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
-  @apply bg-[#faf7f2] text-slate-800 antialiased;
+  @apply bg-slate-950 text-slate-100 antialiased;
 }

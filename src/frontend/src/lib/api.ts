@@ -9,6 +9,9 @@ import { PermisoCodigo, Rol } from './rbac';
  */
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+/** Para construir enlaces directos (descargas) fuera del cliente `api.*`. */
+export const URL_API = `${BASE}/api`;
+
 export class ErrorApi extends Error {
   constructor(public readonly estado: number, mensaje: string) {
     super(mensaje);
@@ -59,6 +62,25 @@ export const api = {
     pedir<T>(ruta, {
       method: 'DELETE',
     }),
+  /** Sin Content-Type propio: el navegador arma el boundary del multipart. */
+  subirArchivo: <T>(ruta: string, formulario: FormData) =>
+    fetch(`${BASE}/api${ruta}`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formulario,
+    }).then(async (res) => {
+      if (!res.ok) {
+        let mensaje = 'No se pudo subir el archivo.';
+        try {
+          const cuerpo = await res.json();
+          mensaje = Array.isArray(cuerpo.message) ? cuerpo.message[0] : (cuerpo.message ?? mensaje);
+        } catch {
+          /* sin cuerpo JSON */
+        }
+        throw new ErrorApi(res.status, mensaje);
+      }
+      return res.json() as Promise<T>;
+    }),
 };
 
 // ------------------------------- tipos -------------------------------
@@ -101,6 +123,15 @@ export interface Subtarea {
   completada: boolean;
 }
 
+export interface ProyectoItem {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  estado: string;
+  creadoEn: string;
+  totalTareas: number;
+}
+
 export interface Actividad {
   id: string;
   titulo: string;
@@ -112,6 +143,15 @@ export interface Actividad {
   proyecto: { nombre: string };
   responsable: { nombreCompleto: string };
   subtareas: Subtarea[];
+}
+
+export interface Evidencia {
+  id: string;
+  nombreArchivo: string;
+  tipoMime: string;
+  tamanoBytes: number;
+  subidaEn: string;
+  subidaPor: { nombreCompleto: string };
 }
 
 export interface Jornada {

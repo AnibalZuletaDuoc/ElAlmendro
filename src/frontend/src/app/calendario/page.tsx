@@ -34,7 +34,7 @@ export default function Pagina() {
   return (
     <Suspense
       fallback={
-        <main className="grid min-h-screen place-items-center bg-[#faf7f2] text-sm text-slate-400">
+        <main className="grid min-h-screen place-items-center bg-slate-950 text-sm text-slate-400">
           Cargando…
         </main>
       }
@@ -183,7 +183,7 @@ function Calendario() {
             onCambio={(id) => navegar({ trabajador: id })}
           />
 
-          <div className="flex overflow-hidden rounded-xl border border-slate-300">
+          <div className="flex overflow-hidden rounded-xl border border-white/15">
             {VISTAS.map((v) => (
               <button
                 key={v.valor}
@@ -191,8 +191,8 @@ function Calendario() {
                 aria-pressed={vista === v.valor}
                 className={`px-3 py-1.5 text-sm transition ${
                   vista === v.valor
-                    ? 'bg-orange-50 font-semibold text-orange-700'
-                    : 'text-slate-600 hover:bg-slate-50'
+                    ? 'bg-sky-500/15 font-semibold text-sky-300'
+                    : 'text-slate-400 hover:bg-white/5'
                 }`}
               >
                 {v.texto}
@@ -204,23 +204,23 @@ function Calendario() {
             <button
               onClick={() => mover(-1)}
               aria-label={vista === 'semana' ? 'Semana anterior' : 'Mes anterior'}
-              className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm hover:bg-white"
+              className="rounded-lg border border-white/15 px-2.5 py-1 text-sm text-slate-300 hover:bg-white/5"
             >
               ‹
             </button>
-            <span className="min-w-44 text-center text-sm font-semibold first-letter:uppercase">
+            <span className="min-w-44 text-center text-sm font-semibold text-slate-200 first-letter:uppercase">
               {vista === 'semana' ? rotulo(semana) : ancla.toFormat('LLLL yyyy', { locale: 'es' })}
             </span>
             <button
               onClick={() => mover(1)}
               aria-label={vista === 'semana' ? 'Semana siguiente' : 'Mes siguiente'}
-              className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm hover:bg-white"
+              className="rounded-lg border border-white/15 px-2.5 py-1 text-sm text-slate-300 hover:bg-white/5"
             >
               ›
             </button>
             <button
               onClick={() => navegar({ ancla: hoyLocal() })}
-              className="rounded-lg border border-slate-300 px-2.5 py-1 text-sm hover:bg-white"
+              className="rounded-lg border border-white/15 px-2.5 py-1 text-sm text-slate-300 hover:bg-white/5"
             >
               Hoy
             </button>
@@ -229,21 +229,21 @@ function Calendario() {
       }
     >
       {error && (
-        <p role="alert" className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <p role="alert" className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
           {error}
         </p>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-slate-500">
+      <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur">
+        <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-slate-400">
           <span>
-            Total del mes: <strong className="font-mono text-slate-800">{duracion(totalMes)}</strong>
+            Total del mes: <strong className="font-mono text-white">{duracion(totalMes)}</strong>
           </span>
           <span>
-            Dias con trabajo: <strong className="text-slate-800">{diasConTrabajo}</strong>
+            Dias con trabajo: <strong className="text-white">{diasConTrabajo}</strong>
           </span>
           {alertasMes > 0 && (
-            <span className="text-amber-700">
+            <span className="text-amber-400">
               ▲ <strong>{alertasMes}</strong> punto(s) por revisar
             </span>
           )}
@@ -279,7 +279,7 @@ function Calendario() {
               onDia={(fecha) => navegar({ dia: fecha })}
             />
           ) : (
-            <p className="p-6 text-center text-sm text-slate-400">Cargando la semana…</p>
+            <p className="p-6 text-center text-sm text-slate-500">Cargando la semana…</p>
           ))}
       </section>
 
@@ -326,7 +326,7 @@ function SelectorTrabajador({
       value={valor ?? ''}
       onChange={(e) => onCambio(e.target.value || null)}
       aria-label="Filtrar por trabajador"
-      className="rounded-xl border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-orange-400"
+      className="rounded-xl border border-white/15 bg-slate-900 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-sky-400"
     >
       <option value="">Todo el equipo</option>
       {equipo.map((w) => (

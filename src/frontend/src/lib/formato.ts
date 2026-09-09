@@ -34,19 +34,19 @@ export function hora(iso: string): string {
 }
 
 export const ESTADOS: Record<string, { texto: string; clase: string; punto: string }> = {
-  PENDIENTE:   { texto: 'Por hacer',   clase: 'text-sky-700 bg-sky-50 border-sky-200',       punto: 'bg-sky-500' },
-  EN_PROGRESO: { texto: 'En progreso', clase: 'text-amber-700 bg-amber-50 border-amber-200', punto: 'bg-amber-500' },
-  BLOQUEADA:   { texto: 'Bloqueada',   clase: 'text-rose-700 bg-rose-50 border-rose-200',    punto: 'bg-rose-500' },
-  INCONCLUSA:  { texto: 'Inconclusa',  clase: 'text-orange-700 bg-orange-50 border-orange-200', punto: 'bg-orange-500' },
-  COMPLETADA:  { texto: 'Completada',  clase: 'text-emerald-700 bg-emerald-50 border-emerald-200', punto: 'bg-emerald-500' },
-  CANCELADA:   { texto: 'Cancelada',   clase: 'text-slate-600 bg-slate-100 border-slate-200', punto: 'bg-slate-400' },
+  PENDIENTE:   { texto: 'Por hacer',   clase: 'text-sky-300 bg-sky-500/10 border-sky-500/30',       punto: 'bg-sky-400' },
+  EN_PROGRESO: { texto: 'En progreso', clase: 'text-amber-300 bg-amber-500/10 border-amber-500/30', punto: 'bg-amber-400' },
+  BLOQUEADA:   { texto: 'Bloqueada',   clase: 'text-rose-300 bg-rose-500/10 border-rose-500/30',    punto: 'bg-rose-400' },
+  INCONCLUSA:  { texto: 'Inconclusa',  clase: 'text-orange-300 bg-orange-500/10 border-orange-500/30', punto: 'bg-orange-400' },
+  COMPLETADA:  { texto: 'Completada',  clase: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30', punto: 'bg-emerald-400' },
+  CANCELADA:   { texto: 'Cancelada',   clase: 'text-slate-400 bg-white/5 border-white/10', punto: 'bg-slate-500' },
 };
 
 export const PRIORIDADES: Record<string, string> = {
-  BAJA: 'text-slate-600 bg-slate-100',
-  MEDIA: 'text-sky-700 bg-sky-100',
-  ALTA: 'text-orange-700 bg-orange-100',
-  CRITICA: 'text-rose-700 bg-rose-100',
+  BAJA: 'text-slate-300 bg-white/5',
+  MEDIA: 'text-sky-300 bg-sky-500/10',
+  ALTA: 'text-orange-300 bg-orange-500/10',
+  CRITICA: 'text-rose-300 bg-rose-500/10',
 };
 
 /** Iniciales para el avatar. */

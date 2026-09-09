@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import Marco from '@/components/Marco';
-import { api } from '@/lib/api';
+import { api, ErrorApi } from '@/lib/api';
 import { HorasActividad, HorasTrabajador } from '@/lib/tipos';
 import { duracion } from '@/lib/formato';
 
@@ -17,6 +18,7 @@ const RANGOS = [
 
 /** US-07 — horas por trabajador y por actividad en un periodo. */
 export default function Reportes() {
+  const router = useRouter();
   const [dias, setDias] = useState(30);
   const [trabajadores, setTrabajadores] = useState<HorasTrabajador[]>([]);
   const [actividades, setActividades] = useState<HorasActividad[]>([]);
@@ -36,8 +38,10 @@ export default function Reportes() {
   }, [dias]);
 
   useEffect(() => {
-    cargar();
-  }, [cargar]);
+    cargar().catch((err) => {
+      if (err instanceof ErrorApi && err.estado === 401) router.replace('/login');
+    });
+  }, [cargar, router]);
 
   const totalSeg = trabajadores.reduce((s, t) => s + t.segundos, 0);
   const grafico = actividades.map((a) => ({
@@ -54,7 +58,7 @@ export default function Reportes() {
         <select
           value={dias}
           onChange={(e) => setDias(Number(e.target.value))}
-          className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-orange-400"
+          className="rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-sky-400"
         >
           {RANGOS.map((r) => (
             <option key={r.dias} value={r.dias}>
@@ -73,17 +77,17 @@ export default function Reportes() {
         />
       </div>
 
-      <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-4 font-bold text-slate-800">Horas por trabajador</h2>
+      <section className="mb-4 rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur">
+        <h2 className="mb-4 font-bold text-white">Horas por trabajador</h2>
         {trabajadores.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">
+          <p className="py-8 text-center text-sm text-slate-500">
             Sin registros en el periodo seleccionado.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[34rem] text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
+                <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide text-slate-400">
                   <th className="pb-2 font-medium">Trabajador</th>
                   <th className="pb-2 text-right font-medium">Horas</th>
                   <th className="pb-2 text-right font-medium">Dias</th>
@@ -94,13 +98,13 @@ export default function Reportes() {
               </thead>
               <tbody>
                 {trabajadores.map((t) => (
-                  <tr key={t.id} className="border-b border-slate-100 last:border-0">
-                    <td className="py-2.5 font-medium text-slate-800">{t.trabajador}</td>
-                    <td className="py-2.5 text-right font-mono">{duracion(t.segundos)}</td>
-                    <td className="py-2.5 text-right text-slate-500">{t.dias}</td>
-                    <td className="py-2.5 text-right text-slate-500">{t.sesiones}</td>
-                    <td className="py-2.5 text-right text-slate-500">{t.actividades}</td>
-                    <td className="py-2.5 text-right font-mono text-slate-500">
+                  <tr key={t.id} className="border-b border-white/5 last:border-0">
+                    <td className="py-2.5 font-medium text-white">{t.trabajador}</td>
+                    <td className="py-2.5 text-right font-mono text-slate-200">{duracion(t.segundos)}</td>
+                    <td className="py-2.5 text-right text-slate-400">{t.dias}</td>
+                    <td className="py-2.5 text-right text-slate-400">{t.sesiones}</td>
+                    <td className="py-2.5 text-right text-slate-400">{t.actividades}</td>
+                    <td className="py-2.5 text-right font-mono text-slate-400">
                       {duracion(Math.round(t.segundos / Math.max(1, t.dias)))}
                     </td>
                   </tr>
@@ -111,34 +115,41 @@ export default function Reportes() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-4 font-bold text-slate-800">Horas por actividad</h2>
+      <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur">
+        <h2 className="mb-4 font-bold text-white">Horas por actividad</h2>
         {grafico.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">
+          <p className="py-8 text-center text-sm text-slate-500">
             Sin registros en el periodo seleccionado.
           </p>
         ) : (
           <div style={{ height: `${Math.max(240, grafico.length * 34)}px` }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={grafico} layout="vertical" margin={{ left: 12, right: 24 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} unit=" h" />
                 <YAxis
                   type="category"
                   dataKey="nombre"
                   width={190}
-                  tick={{ fontSize: 11, fill: '#475569' }}
+                  tick={{ fontSize: 11, fill: '#cbd5e1' }}
                 />
                 <Tooltip
                   formatter={(v: number) => [`${v} h`, 'Horas']}
-                  contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: '#1e293b',
+                    color: '#e2e8f0',
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: '#e2e8f0' }}
                 />
                 {/* Sin animacion: al animarse, las barras conservan la
                     geometria del contenedor anterior cuando este cambia de
                     ancho, y quedan dibujadas a una escala que no corresponde. */}
                 <Bar
                   dataKey="horas"
-                  fill="#fb923c"
+                  fill="#38bdf8"
                   radius={[0, 6, 6, 0]}
                   isAnimationActive={false}
                 />
@@ -153,9 +164,9 @@ export default function Reportes() {
 
 function Indicador({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <p className="text-xs text-slate-500">{etiqueta}</p>
-      <p className="mt-1 text-xl font-bold text-slate-800">{valor}</p>
+    <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur">
+      <p className="text-xs text-slate-400">{etiqueta}</p>
+      <p className="mt-1 text-xl font-bold text-white">{valor}</p>
     </div>
   );
 }

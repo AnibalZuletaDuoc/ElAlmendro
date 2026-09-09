@@ -40,7 +40,7 @@ export default function Login() {
         priority
         className="object-cover"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/20 via-slate-950/40 to-slate-950/90" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/0 via-black/10 to-black/45" />
 
       <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-10 lg:justify-end lg:pr-20">
         <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-slate-900/70 p-9 shadow-2xl backdrop-blur-2xl">

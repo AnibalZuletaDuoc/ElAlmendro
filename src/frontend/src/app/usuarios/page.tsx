@@ -56,6 +56,10 @@ function ContenidoUsuarios() {
       setUsuarios(lista);
       setRolesCatalogo(roles.length ? roles : (ROLES_CATALOGO as any));
     } catch (err) {
+      if (err instanceof ErrorApi && err.estado === 401) {
+        router.replace('/login');
+        return;
+      }
       setMensaje({
         tipo: 'error',
         texto: err instanceof ErrorApi ? err.message : 'Error al conectar con la API de usuarios.',
@@ -63,7 +67,7 @@ function ContenidoUsuarios() {
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (puedeVer) {
@@ -74,17 +78,17 @@ function ContenidoUsuarios() {
   // Si el usuario no tiene permisos para ver este módulo
   if (!puedeVer) {
     return (
-      <div className="mx-auto max-w-lg rounded-2xl border border-rose-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-rose-100 text-rose-600 font-bold text-lg">
+      <div className="mx-auto max-w-lg rounded-2xl border border-rose-500/30 bg-slate-900/60 p-8 text-center shadow-sm backdrop-blur">
+        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-rose-500/10 text-rose-400 font-bold text-lg">
           ✕
         </div>
-        <h2 className="text-lg font-bold text-slate-900">Acceso Restringido</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <h2 className="text-lg font-bold text-white">Acceso Restringido</h2>
+        <p className="mt-1 text-sm text-slate-400">
           No posees los permisos necesarios para administrar usuarios ni roles del sistema.
         </p>
         <button
           onClick={() => router.push('/panel')}
-          className="mt-5 rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+          className="mt-5 rounded-xl bg-slate-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-600"
         >
           Volver a mis actividades
         </button>
@@ -152,8 +156,8 @@ function ContenidoUsuarios() {
           role="alert"
           className={`mb-5 flex items-center justify-between rounded-xl border p-4 text-sm ${
             mensaje.tipo === 'exito'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-rose-200 bg-rose-50 text-rose-800'
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+              : 'border-rose-500/30 bg-rose-500/10 text-rose-300'
           }`}
         >
           <span>{mensaje.texto}</span>
@@ -167,8 +171,8 @@ function ContenidoUsuarios() {
       )}
 
       {sesionActual?.rol === 'SUPERVISOR' && (
-        <div className="mb-5 flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50/80 p-4 text-xs text-sky-900">
-          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-sky-200 text-sky-950 font-bold">
+        <div className="mb-5 flex items-center gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-4 text-xs text-sky-200">
+          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-sky-500/20 text-sky-200 font-bold">
             i
           </div>
           <div>
@@ -211,8 +215,8 @@ function ContenidoUsuarios() {
       </div>
 
       {/* -------------------- Barra de herramientas y filtros -------------------- */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
-        <div className="flex min-w-[18rem] flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm focus-within:border-orange-400 focus-within:bg-white">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur">
+        <div className="flex min-w-[18rem] flex-1 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus-within:border-sky-400 focus-within:bg-white/10">
           <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
@@ -221,10 +225,10 @@ function ContenidoUsuarios() {
             placeholder="Buscar por nombre o correo…"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full bg-transparent outline-none placeholder:text-slate-400"
+            className="w-full bg-transparent outline-none placeholder:text-slate-500"
           />
           {busqueda && (
-            <button onClick={() => setBusqueda('')} className="text-xs text-slate-400 hover:text-slate-600">
+            <button onClick={() => setBusqueda('')} className="text-xs text-slate-400 hover:text-slate-200">
               ✕
             </button>
           )}
@@ -235,7 +239,7 @@ function ContenidoUsuarios() {
             value={filtroRol}
             onChange={(e) => setFiltroRol(e.target.value)}
             aria-label="Filtrar por rol"
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-orange-400"
+            className="rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-sky-400"
           >
             <option value="TODOS">Todos los roles</option>
             <option value="ADMINISTRADOR">Administrador</option>
@@ -247,7 +251,7 @@ function ContenidoUsuarios() {
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
             aria-label="Filtrar por estado"
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-orange-400"
+            className="rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-200 outline-none focus:border-sky-400"
           >
             <option value="TODOS">Todos los estados</option>
             <option value="ACTIVOS">Solo Activos</option>
@@ -257,7 +261,7 @@ function ContenidoUsuarios() {
           {puedeGestionar && (
             <button
               onClick={() => setModalCrearAbierto(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-orange-700"
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-400"
             >
               <span className="text-base leading-none">+</span>
               <span>Nuevo Usuario</span>
@@ -267,19 +271,19 @@ function ContenidoUsuarios() {
       </div>
 
       {/* -------------------- Tabla de usuarios -------------------- */}
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur">
         {cargando ? (
-          <div className="py-16 text-center text-sm text-slate-400">
+          <div className="py-16 text-center text-sm text-slate-500">
             Cargando nómina de usuarios…
           </div>
         ) : usuariosFiltrados.length === 0 ? (
-          <div className="py-16 text-center text-sm text-slate-400">
+          <div className="py-16 text-center text-sm text-slate-500">
             No se encontraron usuarios con los criterios de búsqueda especificados.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-600">
-              <thead className="border-b border-slate-100 bg-slate-50/70 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <table className="w-full text-left text-sm text-slate-300">
+              <thead className="border-b border-white/10 bg-white/5 text-xs font-semibold uppercase tracking-wider text-slate-400">
                 <tr>
                   <th className="px-6 py-3.5">Usuario</th>
                   <th className="px-6 py-3.5">Rol y Permisos</th>
@@ -288,52 +292,52 @@ function ContenidoUsuarios() {
                   <th className="px-6 py-3.5 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-white/5">
                 {usuariosFiltrados.map((u) => {
                   const esPropiaCuenta = sesionActual?.id === u.id;
                   return (
-                    <tr key={u.id} className="transition hover:bg-slate-50/50">
+                    <tr key={u.id} className="transition hover:bg-white/5">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-100 text-xs font-bold text-orange-700">
+                          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-orange-500/15 text-xs font-bold text-orange-300">
                             {iniciales(u.nombreCompleto)}
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900">
+                            <p className="font-semibold text-white">
                               {u.nombreCompleto}
                               {esPropiaCuenta && (
-                                <span className="ml-2 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                                <span className="ml-2 rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
                                   Tú
                                 </span>
                               )}
                             </p>
-                            <p className="text-xs text-slate-400">{u.email}</p>
+                            <p className="text-xs text-slate-500">{u.email}</p>
                           </div>
                         </div>
                       </td>
 
                       <td className="px-6 py-4">
                         <BadgeRol rol={u.rol} />
-                        <p className="mt-1 text-[11px] text-slate-400">
+                        <p className="mt-1 text-[11px] text-slate-500">
                           {u.permisos?.length ?? 0} permiso(s) asignado(s)
                         </p>
                       </td>
 
                       <td className="px-6 py-4">
                         {u.activo ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                             Activo
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
-                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-slate-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
                             Inactivo
                           </span>
                         )}
                       </td>
 
-                      <td className="px-6 py-4 text-xs font-mono text-slate-500">
+                      <td className="px-6 py-4 text-xs font-mono text-slate-400">
                         {u.zonaHoraria || 'America/Santiago'}
                       </td>
 
@@ -344,7 +348,7 @@ function ContenidoUsuarios() {
                               <>
                                 <button
                                   onClick={() => setUsuarioEditando(u)}
-                                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+                                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/5 hover:text-white"
                                 >
                                   Editar
                                 </button>
@@ -354,8 +358,8 @@ function ContenidoUsuarios() {
                                     onClick={() => handleDesactivar(u)}
                                     className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                                       u.activo
-                                        ? 'border-rose-200 text-rose-600 hover:bg-rose-50'
-                                        : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                                        ? 'border-rose-500/30 text-rose-400 hover:bg-rose-500/10'
+                                        : 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'
                                     }`}
                                   >
                                     {u.activo ? 'Desactivar' : 'Activar'}
@@ -363,7 +367,7 @@ function ContenidoUsuarios() {
                                 )}
                               </>
                             ) : (
-                              <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-400">
+                              <span className="rounded-lg bg-white/5 px-2.5 py-1 text-xs font-medium text-slate-500">
                                 Protegido
                               </span>
                             )}
@@ -425,18 +429,18 @@ function TarjetaMetrica({
   color?: 'orange' | 'indigo' | 'sky' | 'emerald' | 'slate';
 }) {
   const colores = {
-    orange: 'border-orange-200/70 bg-orange-50/40 text-orange-700',
-    indigo: 'border-indigo-200/70 bg-indigo-50/40 text-indigo-700',
-    sky: 'border-sky-200/70 bg-sky-50/40 text-sky-700',
-    emerald: 'border-emerald-200/70 bg-emerald-50/40 text-emerald-700',
-    slate: 'border-slate-200/70 bg-slate-50/40 text-slate-700',
+    orange: 'border-orange-500/20 bg-orange-500/5 text-orange-300',
+    indigo: 'border-indigo-500/20 bg-indigo-500/5 text-indigo-300',
+    sky: 'border-sky-500/20 bg-sky-500/5 text-sky-300',
+    emerald: 'border-emerald-500/20 bg-emerald-500/5 text-emerald-300',
+    slate: 'border-white/10 bg-white/5 text-slate-300',
   };
 
   return (
     <div className={`rounded-2xl border p-4 ${colores[color]}`}>
-      <p className="text-xs font-medium text-slate-500">{etiqueta}</p>
-      <p className="my-1 text-2xl font-bold tracking-tight text-slate-900">{valor}</p>
-      <p className="text-[11px] text-slate-400">{subtexto}</p>
+      <p className="text-xs font-medium text-slate-400">{etiqueta}</p>
+      <p className="my-1 text-2xl font-bold tracking-tight text-white">{valor}</p>
+      <p className="text-[11px] text-slate-500">{subtexto}</p>
     </div>
   );
 }
@@ -445,20 +449,20 @@ function BadgeRol({ rol }: { rol: Rol }) {
   switch (rol) {
     case 'ADMINISTRADOR':
       return (
-        <span className="inline-flex items-center rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 border border-indigo-200">
+        <span className="inline-flex items-center rounded-lg bg-indigo-500/10 px-2.5 py-1 text-xs font-semibold text-indigo-300 border border-indigo-500/30">
           Administrador
         </span>
       );
     case 'SUPERVISOR':
       return (
-        <span className="inline-flex items-center rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 border border-sky-200">
+        <span className="inline-flex items-center rounded-lg bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-300 border border-sky-500/30">
           Supervisor
         </span>
       );
     case 'TRABAJADOR':
     default:
       return (
-        <span className="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+        <span className="inline-flex items-center rounded-lg bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/30">
           Trabajador
         </span>
       );
@@ -510,46 +514,46 @@ function ModalCrearUsuario({
   const rolSeleccionado = roles.find((r) => r.codigo === rol);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-      <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-          <h2 className="text-lg font-bold text-slate-800">Registrar Nuevo Trabajador</h2>
-          <button onClick={onCerrar} className="text-slate-400 hover:text-slate-600">✕</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
+          <h2 className="text-lg font-bold text-white">Registrar Nuevo Trabajador</h2>
+          <button onClick={onCerrar} className="text-slate-400 hover:text-slate-200">✕</button>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+          <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Nombre Completo</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Nombre Completo</label>
             <input
               type="text"
               required
               placeholder="Ej: Marcelo Morales"
               value={nombreCompleto}
               onChange={(e) => setNombreCompleto(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-400"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Correo Electrónico</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Correo Electrónico</label>
             <input
               type="email"
               required
               placeholder="nombre@timeflow.cl"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-400"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Contraseña Inicial</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Contraseña Inicial</label>
             <input
               type="password"
               required
@@ -557,17 +561,17 @@ function ModalCrearUsuario({
               placeholder="Mínimo 8 caracteres"
               value={contrasena}
               onChange={(e) => setContrasena(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-400"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Rol en el Sistema (RBAC)</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Rol en el Sistema (RBAC)</label>
             <select
               value={rol}
               disabled={rolOperador === 'SUPERVISOR'}
               onChange={(e) => setRol(e.target.value as Rol)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-400 disabled:bg-slate-100 disabled:text-slate-500"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400 disabled:bg-white/5 disabled:text-slate-500"
             >
               <option value="TRABAJADOR">Trabajador (Registro de tiempo y actividades)</option>
               {rolOperador !== 'SUPERVISOR' && (
@@ -578,40 +582,40 @@ function ModalCrearUsuario({
               )}
             </select>
             {rolOperador === 'SUPERVISOR' && (
-              <p className="mt-1 text-xs text-sky-600">
+              <p className="mt-1 text-xs text-sky-400">
                 Como supervisor, gestionas exclusivamente trabajadores a tu cargo.
               </p>
             )}
             {rolSeleccionado && (
-              <p className="mt-1.5 rounded-lg bg-slate-50 p-2 text-xs text-slate-500">
+              <p className="mt-1.5 rounded-lg bg-white/5 p-2 text-xs text-slate-400">
                 {rolSeleccionado.descripcion}
               </p>
             )}
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Zona Horaria</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Zona Horaria</label>
             <input
               type="text"
               value={zonaHoraria}
               onChange={(e) => setZonaHoraria(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-400 font-mono text-xs"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400 font-mono text-xs"
             />
           </div>
 
-          <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="mt-6 flex justify-end gap-2 border-t border-white/10 pt-4">
             <button
               type="button"
               onClick={onCerrar}
               disabled={enviando}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/5"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={enviando}
-              className="rounded-xl bg-orange-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:opacity-50"
+              className="rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white transition hover:from-sky-400 hover:to-indigo-400 disabled:opacity-50"
             >
               {enviando ? 'Guardando…' : 'Crear Trabajador'}
             </button>
@@ -676,52 +680,52 @@ function ModalEditarUsuario({
   const rolSeleccionado = roles.find((r) => r.codigo === rol);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
-      <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
-        <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Editar Usuario</h2>
+            <h2 className="text-lg font-bold text-white">Editar Usuario</h2>
             <p className="text-xs text-slate-400">{usuario.email}</p>
           </div>
-          <button onClick={onCerrar} className="text-slate-400 hover:text-slate-600">✕</button>
+          <button onClick={onCerrar} className="text-slate-400 hover:text-slate-200">✕</button>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+          <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Nombre Completo</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Nombre Completo</label>
             <input
               type="text"
               required
               value={nombreCompleto}
               onChange={(e) => setNombreCompleto(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-400"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Correo Electrónico (Ingreso)</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Correo Electrónico (Ingreso)</label>
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-400"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">Rol Asignado (RBAC)</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Rol Asignado (RBAC)</label>
             <select
               value={rol}
               disabled={rolOperador === 'SUPERVISOR'}
               onChange={(e) => setRol(e.target.value as Rol)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-400 disabled:bg-slate-100 disabled:text-slate-500"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400 disabled:bg-white/5 disabled:text-slate-500"
             >
               <option value="TRABAJADOR">Trabajador</option>
               {rolOperador !== 'SUPERVISOR' && (
@@ -732,32 +736,32 @@ function ModalEditarUsuario({
               )}
             </select>
             {rolOperador === 'SUPERVISOR' && (
-              <p className="mt-1 text-xs text-sky-600">
+              <p className="mt-1 text-xs text-sky-400">
                 La asignación o modificación de roles superiores está reservada a administradores.
               </p>
             )}
             {rolSeleccionado && (
-              <p className="mt-1.5 rounded-lg bg-slate-50 p-2 text-xs text-slate-500">
+              <p className="mt-1.5 rounded-lg bg-white/5 p-2 text-xs text-slate-400">
                 {rolSeleccionado.descripcion}
               </p>
             )}
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
             <input
               type="checkbox"
               id="activo-check"
               checked={activo}
               onChange={(e) => setActivo(e.target.checked)}
-              className="h-4 w-4 rounded-sm text-orange-600 focus:ring-orange-400"
+              className="h-4 w-4 rounded-sm text-sky-500 focus:ring-sky-400"
             />
-            <label htmlFor="activo-check" className="text-sm font-medium text-slate-700">
+            <label htmlFor="activo-check" className="text-sm font-medium text-slate-200">
               Usuario Activo (permite iniciar sesión en la plataforma)
             </label>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-600">
+            <label className="mb-1 block text-xs font-semibold text-slate-300">
               Nueva Contraseña <span className="font-normal text-slate-400">(dejar en blanco para conservar la actual)</span>
             </label>
             <input
@@ -766,23 +770,23 @@ function ModalEditarUsuario({
               placeholder="Opcional: ingresar nueva contraseña"
               value={nuevaContrasena}
               onChange={(e) => setNuevaContrasena(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-orange-400"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
             />
           </div>
 
-          <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="mt-6 flex justify-end gap-2 border-t border-white/10 pt-4">
             <button
               type="button"
               onClick={onCerrar}
               disabled={enviando}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/5"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={enviando}
-              className="rounded-xl bg-orange-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:opacity-50"
+              className="rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white transition hover:from-sky-400 hover:to-indigo-400 disabled:opacity-50"
             >
               {enviando ? 'Guardando…' : 'Guardar Cambios'}
             </button>

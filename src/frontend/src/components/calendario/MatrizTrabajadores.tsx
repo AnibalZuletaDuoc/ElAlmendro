@@ -40,7 +40,7 @@ export default function MatrizTrabajadores({
 
   if (trabajadores.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-400">
+      <p className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-sm text-slate-500">
         No hay trabajadores activos que mostrar.
       </p>
     );
@@ -59,8 +59,8 @@ export default function MatrizTrabajadores({
               const d = DateTime.fromISO(fecha, { zone: ZONA });
               return (
                 <div key={fecha} className="pb-1 text-center">
-                  <span className="block text-[10px] font-medium text-slate-500">{d.day}</span>
-                  <span className="block text-[9px] uppercase text-slate-300">
+                  <span className="block text-[10px] font-medium text-slate-400">{d.day}</span>
+                  <span className="block text-[9px] uppercase text-slate-600">
                     {d.toFormat('ccccc', { locale: 'es' })}
                   </span>
                 </div>
@@ -76,18 +76,18 @@ export default function MatrizTrabajadores({
             return (
               <div
                 key={w.id}
-                className="grid items-center gap-0.5 border-t border-slate-100 py-1"
+                className="grid items-center gap-0.5 border-t border-white/5 py-1"
                 style={{ gridTemplateColumns: columnas }}
               >
                 <div className="flex min-w-0 items-center gap-2 pr-3">
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-sky-100 text-[10px] font-bold text-sky-700">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-sky-500/15 text-[10px] font-bold text-sky-300">
                     {iniciales(w.nombre)}
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-xs font-medium text-slate-700">
+                    <span className="block truncate text-xs font-medium text-slate-200">
                       {w.nombre}
                     </span>
-                    <span className="block text-[10px] text-slate-400">
+                    <span className="block text-[10px] text-slate-500">
                       {duracion(total)} · {activos} d
                     </span>
                   </span>
@@ -117,9 +117,9 @@ export default function MatrizTrabajadores({
                       }`}
                       className={`relative aspect-square rounded-sm transition ${escala.clase} ${
                         segundos > 0
-                          ? 'cursor-pointer hover:ring-2 hover:ring-orange-300'
-                          : 'cursor-default border border-dashed border-slate-200'
-                      } ${seleccionado === fecha ? 'ring-2 ring-orange-400' : ''}`}
+                          ? 'cursor-pointer hover:ring-2 hover:ring-sky-400/50'
+                          : 'cursor-default border border-dashed border-white/10'
+                      } ${seleccionado === fecha ? 'ring-2 ring-sky-400' : ''}`}
                     >
                       {alerta && (
                         <span className="absolute right-0 top-0 text-[8px] font-bold leading-none text-amber-500">
@@ -135,8 +135,8 @@ export default function MatrizTrabajadores({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-3 text-[11px] text-slate-400">
-        <span className="font-medium text-slate-500">Horas del trabajador:</span>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 pt-3 text-[11px] text-slate-400">
+        <span className="font-medium text-slate-300">Horas del trabajador:</span>
         <span className="flex items-center gap-1.5">
           <span className={`h-3 w-3 rounded-sm ${SIN_REGISTRO.muestra}`} />
           {SIN_REGISTRO.etiqueta}

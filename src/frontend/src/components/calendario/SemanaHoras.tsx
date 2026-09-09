@@ -46,20 +46,20 @@ export default function SemanaHoras({
             <div
               key={dia.fecha}
               className={`flex items-start gap-2 rounded-lg p-1 transition ${
-                seleccionado === dia.fecha ? 'ring-2 ring-orange-400' : ''
+                seleccionado === dia.fecha ? 'ring-2 ring-sky-400' : ''
               }`}
             >
               <button
                 onClick={() => conRegistro && onDia(dia.fecha)}
                 disabled={!conRegistro}
                 className={`w-24 shrink-0 rounded-lg px-2 py-1 text-left transition ${
-                  conRegistro ? 'hover:bg-slate-50' : 'cursor-default'
+                  conRegistro ? 'hover:bg-white/5' : 'cursor-default'
                 }`}
               >
-                <span className="block text-xs font-semibold text-slate-700 first-letter:uppercase">
+                <span className="block text-xs font-semibold text-slate-200 first-letter:uppercase">
                   {d.toFormat('ccc d', { locale: 'es' })}
                 </span>
-                <span className="block font-mono text-[10px] text-slate-400">
+                <span className="block font-mono text-[10px] text-slate-500">
                   {conRegistro ? duracion(dia.resumen.segundosImputados) : 'sin registro'}
                 </span>
               </button>
@@ -77,9 +77,9 @@ export default function SemanaHoras({
         })}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-3 text-[11px] text-slate-400">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 pt-3 text-[11px] text-slate-400">
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-4 rounded-sm bg-slate-200" /> jornada
+          <span className="h-2.5 w-4 rounded-sm bg-white/15" /> jornada
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-4 rounded-sm bg-emerald-500" /> sesion cerrada

@@ -35,23 +35,23 @@ export default function Drawer({
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
-      <div className="absolute inset-0 bg-slate-900/20" onClick={onCerrar} aria-hidden />
+      <div className="absolute inset-0 bg-black/40" onClick={onCerrar} aria-hidden />
 
       <aside
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
-        className="relative z-10 flex h-full w-full max-w-[560px] flex-col border-l border-slate-200 bg-white shadow-xl"
+        className="relative z-10 flex h-full w-full max-w-[560px] flex-col border-l border-white/10 bg-slate-900 shadow-xl"
       >
-        <header className="flex items-start gap-3 border-b border-slate-200 px-5 py-4">
+        <header className="flex items-start gap-3 border-b border-white/10 px-5 py-4">
           <div className="min-w-0">
-            <h2 className="truncate font-bold text-slate-800 first-letter:uppercase">{titulo}</h2>
+            <h2 className="truncate font-bold text-white first-letter:uppercase">{titulo}</h2>
             {subtitulo && <p className="text-xs text-slate-400">{subtitulo}</p>}
           </div>
           <button
             onClick={onCerrar}
             aria-label="Cerrar el detalle"
-            className="ml-auto rounded-lg border border-slate-300 px-2 py-0.5 text-slate-500 transition hover:bg-slate-50"
+            className="ml-auto rounded-lg border border-white/10 px-2 py-0.5 text-slate-400 transition hover:bg-white/5"
           >
             ×
           </button>

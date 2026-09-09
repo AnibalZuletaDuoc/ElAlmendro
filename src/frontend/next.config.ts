@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 
 const config: NextConfig = {
   reactStrictMode: true,
+  devIndicators: false,
   // La web actua ademas como BFF: agrega llamadas y custodia los tokens en
   // cookies httpOnly, de modo que el navegador nunca habla directo con la API.
   env: {

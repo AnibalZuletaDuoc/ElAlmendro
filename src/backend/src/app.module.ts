@@ -12,6 +12,8 @@ import { NodosModule } from './modules/nodos/nodos.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { CalendarioModule } from './modules/calendario/calendario.module';
 import { UsuariosModule } from './modules/usuarios/usuarios.module';
+import { ProyectosModule } from './modules/proyectos/proyectos.module';
+import { EvidenciasModule } from './modules/evidencias/evidencias.module';
 
 /**
  * Raiz de la capa de negocio.
@@ -34,7 +36,9 @@ import { UsuariosModule } from './modules/usuarios/usuarios.module';
     DashboardModule,
     CalendarioModule,
     UsuariosModule,
-    // EvidenciasModule, HistorialModule, NotificacionesModule,
+    ProyectosModule,
+    EvidenciasModule,
+    // HistorialModule, NotificacionesModule,
   ],
   controllers: [SaludController],
 })

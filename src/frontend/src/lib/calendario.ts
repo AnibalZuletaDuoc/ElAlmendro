@@ -138,9 +138,9 @@ export const ESCALA: (TramoEscala & { hasta: number })[] = [
 ];
 
 export const SIN_REGISTRO: TramoEscala = {
-  clase: 'bg-white text-slate-300',
+  clase: 'bg-white/5 text-slate-500',
   etiqueta: 'sin registro',
-  muestra: 'bg-white border border-dashed border-slate-300',
+  muestra: 'bg-white/5 border border-dashed border-white/15',
 };
 
 export function tramoEscala(segundosPorPersona: number): TramoEscala {

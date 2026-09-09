@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { CrearActividadDto } from './dto/crear-actividad.dto';
+import { ActualizarActividadDto } from './dto/actualizar-actividad.dto';
 
 /** US-03 y US-04 — consulta de actividades y su tiempo acumulado. */
 @Injectable()
@@ -79,5 +81,92 @@ export class ActividadesService {
     return new Map(
       filas.map((f) => [f.actividadId, Math.round(Number(f.segundos))]),
     );
+  }
+
+  /** Crea una tarea del mapa de nodos, opcionalmente colgada de otra (US-05). */
+  async crear(usuarioId: string, dto: CrearActividadDto) {
+    if (dto.actividadPadreId) {
+      const padre = await this.prisma.actividad.findFirst({
+        where: { id: dto.actividadPadreId, proyectoId: dto.proyectoId, eliminadoEn: null },
+        select: { id: true },
+      });
+      if (!padre) throw new BadRequestException('La tarea padre no pertenece a este proyecto.');
+    }
+
+    return this.prisma.actividad.create({
+      data: {
+        proyectoId: dto.proyectoId,
+        titulo: dto.titulo,
+        actividadPadreId: dto.actividadPadreId ?? null,
+        responsableId: usuarioId,
+      },
+      select: {
+        id: true,
+        titulo: true,
+        estado: true,
+        prioridad: true,
+        actividadPadreId: true,
+        posicionNodo: true,
+        responsable: { select: { nombreCompleto: true } },
+      },
+    });
+  }
+
+  /**
+   * Reasigna el padre de una tarea en el arbol de nodos (o la vuelve raiz con
+   * `null`). Rechaza el cambio si crea un ciclo: una tarea no puede terminar
+   * colgando de su propio descendiente.
+   */
+  async actualizarPadre(id: string, dto: ActualizarActividadDto) {
+    const actividad = await this.prisma.actividad.findFirst({
+      where: { id, eliminadoEn: null },
+      select: { id: true, proyectoId: true },
+    });
+    if (!actividad) throw new NotFoundException('La actividad no existe.');
+
+    const nuevoPadreId = dto.actividadPadreId ?? null;
+
+    if (nuevoPadreId) {
+      if (nuevoPadreId === id) {
+        throw new BadRequestException('Una tarea no puede ser padre de si misma.');
+      }
+
+      const padre = await this.prisma.actividad.findFirst({
+        where: { id: nuevoPadreId, proyectoId: actividad.proyectoId, eliminadoEn: null },
+        select: { id: true },
+      });
+      if (!padre) throw new BadRequestException('La tarea padre no pertenece a este proyecto.');
+
+      // Camina hacia arriba desde el padre propuesto: si en el camino aparece
+      // la propia tarea, el cambio la colgaria de su descendiente.
+      let cursor: string | null = nuevoPadreId;
+      for (let saltos = 0; cursor && saltos < 200; saltos++) {
+        if (cursor === id) {
+          throw new BadRequestException(
+            'Ese cambio formaria un ciclo: la tarea no puede depender de su propia rama.',
+          );
+        }
+        const fila: { actividadPadreId: string | null } | null =
+          await this.prisma.actividad.findUnique({
+            where: { id: cursor },
+            select: { actividadPadreId: true },
+          });
+        cursor = fila?.actividadPadreId ?? null;
+      }
+    }
+
+    return this.prisma.actividad.update({
+      where: { id },
+      data: { actividadPadreId: nuevoPadreId },
+      select: {
+        id: true,
+        titulo: true,
+        estado: true,
+        prioridad: true,
+        actividadPadreId: true,
+        posicionNodo: true,
+        responsable: { select: { nombreCompleto: true } },
+      },
+    });
   }
 }

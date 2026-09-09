@@ -3,393 +3,358 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Marco from '@/components/Marco';
-import { api, Actividad, ErrorApi, Jornada, Sesion } from '@/lib/api';
-import { cronometro, duracion, ESTADOS, hora, PRIORIDADES } from '@/lib/formato';
+import { api, ErrorApi, ProyectoItem } from '@/lib/api';
 
+/** Proyectos del trabajador: cada uno es la raiz de su propio mapa de nodos. */
 export default function Panel() {
   const router = useRouter();
 
-  const [actividades, setActividades] = useState<Actividad[]>([]);
-  const [jornada, setJornada] = useState<Jornada | null>(null);
-  const [sesion, setSesion] = useState<Sesion | null>(null);
-  const [seleccionada, setSeleccionada] = useState<string | null>(null);
-  const [segundos, setSegundos] = useState(0);
+  const [proyectos, setProyectos] = useState<ProyectoItem[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [seleccionado, setSeleccionado] = useState<string | null>(null);
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [editando, setEditando] = useState<ProyectoItem | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [cerrando, setCerrando] = useState(false);
-  const [nota, setNota] = useState('');
-
-  // ------------------------------------------------------------------ datos
 
   const cargar = useCallback(async () => {
-    const [acts, jor, ses] = await Promise.all([
-      api.get<Actividad[]>('/actividades/mias'),
-      api.get<Jornada | null>('/jornadas/actual'),
-      api.get<Sesion | null>('/sesiones/activa'),
-    ]);
-    setActividades(acts);
-    setJornada(jor);
-    setSesion(ses);
-    setSegundos(ses?.segundosAcumulados ?? 0);
+    const lista = await api.get<ProyectoItem[]>('/proyectos/mios');
+    setProyectos(lista);
   }, []);
 
   useEffect(() => {
-    cargar().catch((err) => {
-      if (err instanceof ErrorApi && err.estado === 401) router.replace('/login');
-      else setAviso('No se pudo conectar con el servidor.');
-    });
+    setCargando(true);
+    cargar()
+      .catch((err) => {
+        if (err instanceof ErrorApi && err.estado === 401) router.replace('/login');
+        else setAviso('No se pudo conectar con el servidor.');
+      })
+      .finally(() => setCargando(false));
   }, [cargar, router]);
 
-  /**
-   * El cronometro visible se calcula sobre los segundos que devolvio la API.
-   * Es un calculo de presentacion: este valor no vuelve nunca al servidor.
-   */
-  useEffect(() => {
-    if (sesion?.estado !== 'ACTIVA') return;
-    const id = setInterval(() => setSegundos((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [sesion?.estado, sesion?.id]);
+  const proyecto = proyectos.find((p) => p.id === seleccionado) ?? null;
 
-  async function accion(fn: () => Promise<unknown>) {
-    setAviso(null);
-    try {
-      await fn();
-      await cargar();
-    } catch (err) {
-      setAviso(err instanceof ErrorApi ? err.message : 'Ocurrio un error.');
-    }
+  function irATareas(p: ProyectoItem) {
+    router.push(`/nodos?proyectoId=${p.id}&nombre=${encodeURIComponent(p.nombre)}`);
   }
 
-  // ------------------------------------------------------------------ vista
-
-  const actividad = actividades.find((a) => a.id === seleccionada) ?? null;
-  const enJornada = Boolean(jornada);
-  const totalSeg = actividades.reduce((t, a) => t + a.segundosTrabajados, 0);
-  const completadas = actividades.filter((a) => a.estado === 'COMPLETADA').length;
-  const avance = actividades.length
-    ? Math.round((completadas / actividades.length) * 100)
-    : 0;
-
   return (
-    <Marco
-      activo="/panel"
-      titulo="Mis actividades"
-      subtitulo={
-        actividades[0]?.proyecto.nombre
-          ? `${actividades[0].proyecto.nombre} · ${avance}% completado · ${duracion(totalSeg)} registradas`
-          : 'Sin actividades asignadas'
-      }
-      acciones={
-        <>
-          {enJornada ? (
-            <span className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-              En jornada desde {hora(jornada!.inicioEn)}
-            </span>
-          ) : (
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
-              Fuera de jornada
-            </span>
-          )}
-
-          <button
-            onClick={() =>
-              accion(() =>
-                api.post(enJornada ? '/jornadas/salida' : '/jornadas/entrada'),
-              )
-            }
-            className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition ${
-              enJornada
-                ? 'bg-slate-700 hover:bg-slate-800'
-                : 'bg-emerald-600 hover:bg-emerald-700'
-            }`}
-          >
-            {enJornada ? 'Marcar salida' : 'Marcar entrada'}
-          </button>
-        </>
-      }
-    >
+    <Marco activo="/panel" titulo="Proyectos">
       {aviso && (
         <p
           role="alert"
-          className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800"
+          className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-300"
         >
           {aviso}
         </p>
       )}
 
       <div className="flex flex-col gap-4 lg:flex-row">
-        {/* ------------------------------------ tarjetas de actividad */}
         <section className="min-w-0 flex-1">
-          {actividades.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-400">
-              No tienes actividades asignadas.
+          {cargando ? (
+            <p className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-sm text-slate-500">
+              Cargando proyectos…
             </p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {actividades.map((a) => {
-                const est = ESTADOS[a.estado] ?? ESTADOS.PENDIENTE;
-                const corriendo = sesion?.actividad.id === a.id;
-                const hechas = a.subtareas.filter((s) => s.completada).length;
-                const progreso = a.subtareas.length
-                  ? Math.round((hechas / a.subtareas.length) * 100)
-                  : a.estado === 'COMPLETADA'
-                    ? 100
-                    : 0;
+              {proyectos.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setSeleccionado(p.id)}
+                  className={`rounded-2xl border bg-slate-900/60 p-4 text-left backdrop-blur transition hover:bg-slate-900 ${
+                    seleccionado === p.id
+                      ? 'border-sky-400/50 ring-2 ring-sky-400/20'
+                      : 'border-white/10'
+                  }`}
+                >
+                  <p className="mb-1 font-semibold leading-snug text-white">{p.nombre}</p>
+                  <p className="mb-3 line-clamp-2 text-xs text-slate-500">
+                    {p.descripcion || 'Sin descripción'}
+                  </p>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-300">
+                    {p.totalTareas} tarea{p.totalTareas === 1 ? '' : 's'}
+                  </span>
+                </button>
+              ))}
 
-                return (
-                  <button
-                    key={a.id}
-                    onClick={() => setSeleccionada(a.id)}
-                    className={`rounded-2xl border bg-white p-4 text-left transition hover:shadow-md ${
-                      seleccionada === a.id
-                        ? 'border-orange-300 ring-2 ring-orange-100'
-                        : 'border-slate-200'
-                    }`}
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${est.clase}`}
-                      >
-                        <span className={`h-1.5 w-1.5 rounded-full ${est.punto}`} />
-                        {est.texto}
-                      </span>
-                      {corriendo && (
-                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
-                          corriendo
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="mb-1 font-semibold leading-snug text-slate-800">
-                      {a.titulo}
-                    </p>
-                    <p className="mb-3 text-xs text-slate-400">
-                      {duracion(a.segundosTrabajados)}
-                      {a.minutosEstimados
-                        ? ` de ${duracion(a.minutosEstimados * 60)} estimadas`
-                        : ''}
-                    </p>
-
-                    <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          a.estado === 'COMPLETADA' ? 'bg-emerald-500' : 'bg-amber-400'
-                        }`}
-                        style={{ width: `${progreso}%` }}
-                      />
-                    </div>
-                  </button>
-                );
-              })}
+              <button
+                onClick={() => setModalAbierto(true)}
+                className="flex min-h-[7.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-white/15 p-4 text-slate-400 transition hover:border-sky-400/40 hover:text-sky-300"
+              >
+                <span className="text-2xl leading-none">+</span>
+                <span className="text-sm font-medium">Crear proyecto</span>
+              </button>
             </div>
           )}
         </section>
 
-        {/* ------------------------------------ panel de detalle */}
-        {actividad && (
-          <aside className="w-full shrink-0 rounded-2xl border border-slate-200 bg-white p-5 lg:w-96">
+        {proyecto && (
+          <aside className="w-full shrink-0 rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur lg:w-96">
             <div className="mb-4 flex items-start justify-between gap-3">
-              <h2 className="font-bold leading-snug text-slate-800">
-                {actividad.titulo}
-              </h2>
-              <button
-                onClick={() => setSeleccionada(null)}
-                aria-label="Cerrar detalle"
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-slate-200 text-slate-400 transition hover:bg-slate-50"
-              >
-                ×
-              </button>
-            </div>
-
-            <Fila etiqueta="Asignado a" valor={actividad.responsable.nombreCompleto} />
-            <Fila
-              etiqueta="Estado"
-              valor={
-                <span
-                  className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                    (ESTADOS[actividad.estado] ?? ESTADOS.PENDIENTE).clase
-                  }`}
+              <h2 className="font-bold leading-snug text-white">{proyecto.nombre}</h2>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  onClick={() => setEditando(proyecto)}
+                  className="rounded-lg border border-white/10 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/5 hover:text-white"
                 >
-                  {(ESTADOS[actividad.estado] ?? ESTADOS.PENDIENTE).texto}
-                </span>
-              }
-            />
-            <Fila
-              etiqueta="Prioridad"
-              valor={
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                    PRIORIDADES[actividad.prioridad] ?? ''
-                  }`}
+                  Editar
+                </button>
+                <button
+                  onClick={() => setSeleccionado(null)}
+                  aria-label="Cerrar detalle"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-white/10 text-slate-400 transition hover:bg-white/5"
                 >
-                  {actividad.prioridad}
-                </span>
-              }
-            />
-            <Fila
-              etiqueta="Tiempo acumulado"
-              valor={duracion(actividad.segundosTrabajados)}
-            />
-
-            {/* ------------------------------ cronometro */}
-            <div className="my-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
-              <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                {sesion?.actividad.id === actividad.id
-                  ? sesion.estado === 'ACTIVA'
-                    ? 'Sesion en curso'
-                    : 'Sesion en pausa'
-                  : 'Sin sesion iniciada'}
-              </p>
-              <p
-                className={`my-1 font-mono text-3xl font-bold tabular-nums ${
-                  sesion?.actividad.id === actividad.id
-                    ? 'text-slate-800'
-                    : 'text-slate-300'
-                }`}
-              >
-                {cronometro(sesion?.actividad.id === actividad.id ? segundos : 0)}
-              </p>
-              <p className="text-[11px] text-slate-400">
-                Cronometrado por el servidor
-              </p>
-            </div>
-
-            {sesion?.actividad.id !== actividad.id ? (
-              <button
-                onClick={() =>
-                  accion(() =>
-                    api.post('/sesiones/iniciar', { actividadId: actividad.id }),
-                  )
-                }
-                disabled={actividad.estado === 'COMPLETADA'}
-                className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Comenzar
-              </button>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      accion(() =>
-                        api.post(
-                          `/sesiones/${sesion.id}/${
-                            sesion.estado === 'ACTIVA' ? 'pausar' : 'reanudar'
-                          }`,
-                        ),
-                      )
-                    }
-                    className="flex-1 rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    {sesion.estado === 'ACTIVA' ? 'Pausar' : 'Reanudar'}
-                  </button>
-                  <button
-                    onClick={() => setCerrando(true)}
-                    className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
-                  >
-                    Terminar
-                  </button>
-                </div>
-
-                {cerrando && (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="mb-2 text-xs font-medium text-slate-600">
-                      Como dejas la actividad?
-                    </p>
-                    <textarea
-                      value={nota}
-                      onChange={(e) => setNota(e.target.value)}
-                      rows={2}
-                      placeholder="Nota de cierre (obligatoria si queda inconclusa)"
-                      className="mb-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs outline-none focus:border-orange-400"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          accion(async () => {
-                            await api.post(`/sesiones/${sesion.id}/cerrar`, {
-                              desenlace: 'COMPLETADA',
-                              notaCierre: nota || undefined,
-                            });
-                            setCerrando(false);
-                            setNota('');
-                          })
-                        }
-                        className="flex-1 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
-                      >
-                        Completada
-                      </button>
-                      <button
-                        onClick={() =>
-                          accion(async () => {
-                            await api.post(`/sesiones/${sesion.id}/cerrar`, {
-                              desenlace: 'INCONCLUSA',
-                              notaCierre: nota,
-                            });
-                            setCerrando(false);
-                            setNota('');
-                          })
-                        }
-                        className="flex-1 rounded-lg bg-orange-500 py-2 text-xs font-semibold text-white hover:bg-orange-600"
-                      >
-                        Inconclusa
-                      </button>
-                    </div>
-                  </div>
-                )}
+                  ×
+                </button>
               </div>
-            )}
+            </div>
 
-            {actividad.descripcion && (
-              <>
-                <p className="mt-5 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                  Descripcion
-                </p>
-                <p className="text-sm leading-relaxed text-slate-600">
-                  {actividad.descripcion}
-                </p>
-              </>
-            )}
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Descripción
+            </p>
+            <p className="mb-4 text-sm leading-relaxed text-slate-300">
+              {proyecto.descripcion || 'Sin descripción'}
+            </p>
 
-            {actividad.subtareas.length > 0 && (
-              <>
-                <p className="mt-5 mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                  Subtareas ({actividad.subtareas.filter((s) => s.completada).length}
-                  /{actividad.subtareas.length})
-                </p>
-                <ul className="flex flex-col gap-1.5">
-                  {actividad.subtareas.map((s) => (
-                    <li
-                      key={s.id}
-                      className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-                        s.completada
-                          ? 'bg-emerald-50 text-emerald-800'
-                          : 'bg-slate-50 text-slate-600'
-                      }`}
-                    >
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          s.completada ? 'bg-emerald-500' : 'bg-slate-300'
-                        }`}
-                      />
-                      {s.titulo}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
+            <Fila
+              etiqueta="Creado el"
+              valor={new Date(proyecto.creadoEn).toLocaleDateString('es-CL', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            />
+            <Fila
+              etiqueta="Tareas asociadas"
+              valor={`${proyecto.totalTareas} tarea${proyecto.totalTareas === 1 ? '' : 's'}`}
+            />
+
+            <button
+              onClick={() => irATareas(proyecto)}
+              className="mt-5 w-full rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 py-2.5 text-sm font-semibold text-white transition hover:from-sky-400 hover:to-indigo-400"
+            >
+              Ir a las tareas
+            </button>
           </aside>
         )}
       </div>
+
+      {modalAbierto && (
+        <ModalCrearProyecto
+          onCerrar={() => setModalAbierto(false)}
+          onCreado={async () => {
+            setModalAbierto(false);
+            await cargar();
+          }}
+        />
+      )}
+
+      {editando && (
+        <ModalEditarProyecto
+          proyecto={editando}
+          onCerrar={() => setEditando(null)}
+          onGuardado={async () => {
+            setEditando(null);
+            await cargar();
+          }}
+        />
+      )}
     </Marco>
   );
 }
 
 function Fila({ etiqueta, valor }: { etiqueta: string; valor: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between border-b border-slate-100 py-2 text-sm">
-      <span className="text-slate-500">{etiqueta}</span>
-      <span className="font-medium text-slate-800">{valor}</span>
+    <div className="flex items-center justify-between border-b border-white/5 py-2 text-sm">
+      <span className="text-slate-400">{etiqueta}</span>
+      <span className="font-medium text-white">{valor}</span>
+    </div>
+  );
+}
+
+function ModalCrearProyecto({
+  onCerrar,
+  onCreado,
+}: {
+  onCerrar: () => void;
+  onCreado: () => Promise<void>;
+}) {
+  const [nombre, setNombre] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setEnviando(true);
+    try {
+      await api.post('/proyectos', {
+        nombre,
+        descripcion: descripcion || undefined,
+      });
+      await onCreado();
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo crear el proyecto.');
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
+          <h2 className="text-lg font-bold text-white">Crear proyecto</h2>
+          <button onClick={onCerrar} className="text-slate-400 hover:text-slate-200">
+            ✕
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={enviar} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Nombre</label>
+            <input
+              type="text"
+              required
+              autoFocus
+              placeholder="Ej: Sitio web corporativo"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">
+              Descripción <span className="font-normal text-slate-500">(opcional)</span>
+            </label>
+            <textarea
+              rows={3}
+              placeholder="De qué trata este proyecto"
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
+            />
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2 border-t border-white/10 pt-4">
+            <button
+              type="button"
+              onClick={onCerrar}
+              disabled={enviando}
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/5"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={enviando}
+              className="rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white transition hover:from-sky-400 hover:to-indigo-400 disabled:opacity-50"
+            >
+              {enviando ? 'Creando…' : 'Crear proyecto'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ModalEditarProyecto({
+  proyecto,
+  onCerrar,
+  onGuardado,
+}: {
+  proyecto: ProyectoItem;
+  onCerrar: () => void;
+  onGuardado: () => Promise<void>;
+}) {
+  const [nombre, setNombre] = useState(proyecto.nombre);
+  const [descripcion, setDescripcion] = useState(proyecto.descripcion ?? '');
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setEnviando(true);
+    try {
+      await api.patch(`/proyectos/${proyecto.id}`, {
+        nombre,
+        descripcion: descripcion || undefined,
+      });
+      await onGuardado();
+    } catch (err) {
+      setError(err instanceof ErrorApi ? err.message : 'No se pudo actualizar el proyecto.');
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
+          <h2 className="text-lg font-bold text-white">Editar proyecto</h2>
+          <button onClick={onCerrar} className="text-slate-400 hover:text-slate-200">
+            ✕
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={enviar} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">Nombre</label>
+            <input
+              type="text"
+              required
+              autoFocus
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-slate-300">
+              Descripción <span className="font-normal text-slate-500">(opcional)</span>
+            </label>
+            <textarea
+              rows={3}
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
+            />
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2 border-t border-white/10 pt-4">
+            <button
+              type="button"
+              onClick={onCerrar}
+              disabled={enviando}
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-white/5"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={enviando}
+              className="rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white transition hover:from-sky-400 hover:to-indigo-400 disabled:opacity-50"
+            >
+              {enviando ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

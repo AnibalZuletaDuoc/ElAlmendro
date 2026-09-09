@@ -77,26 +77,26 @@ export default function LineaTiempo({
           <div key={w.id} className="flex items-center gap-2">
             {mostrarNombres && (
               <span
-                className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-sky-100 text-[9px] font-bold text-sky-700"
+                className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-sky-500/15 text-[9px] font-bold text-sky-300"
                 title={w.nombre}
               >
                 {iniciales(w.nombre)}
               </span>
             )}
 
-            <div className="relative h-7 min-w-0 flex-1 overflow-hidden rounded bg-slate-50">
+            <div className="relative h-7 min-w-0 flex-1 overflow-hidden rounded bg-white/5">
               {lineas.map((i) => (
                 <span
                   key={i}
                   aria-hidden
-                  className="absolute inset-y-0 w-px bg-slate-200/70"
+                  className="absolute inset-y-0 w-px bg-white/10"
                   style={{ left: `${(i / ancho) * 100}%` }}
                 />
               ))}
 
               {jornada && (
                 <span
-                  className="absolute inset-y-1 rounded bg-slate-200"
+                  className="absolute inset-y-1 rounded bg-white/15"
                   style={jornada}
                   title={`Jornada: ${hora(w.jornada!.inicioEn)}${
                     w.jornada!.terminoEn ? ` – ${hora(w.jornada!.terminoEn)}` : ' – sin cerrar'
@@ -129,7 +129,7 @@ export default function LineaTiempo({
               )}
 
               {!w.jornada && w.sesiones.length === 0 && (
-                <span className="absolute inset-0 grid place-items-center text-[10px] text-slate-300">
+                <span className="absolute inset-0 grid place-items-center text-[10px] text-slate-600">
                   sin registro
                 </span>
               )}
