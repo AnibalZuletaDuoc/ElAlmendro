@@ -168,3 +168,37 @@ export interface Sesion {
   segundosAcumulados: number;
   actividad: { id: string; titulo: string };
 }
+
+// ------------------------------- chat -------------------------------
+
+export interface MensajeChat {
+  id: string;
+  emisorId: string;
+  /** null = canal general del equipo. */
+  receptorId: string | null;
+  cuerpo: string;
+  creadoEn: string;
+  leidoEn: string | null;
+  emisor: { id: string; nombreCompleto: string };
+}
+
+export interface ResumenMensaje {
+  cuerpo: string;
+  creadoEn: string;
+  propio: boolean;
+}
+
+export interface ContactoChat {
+  id: string;
+  nombreCompleto: string;
+  rol: Rol;
+  email: string;
+  enLinea: boolean;
+  noLeidos: number;
+  ultimoMensaje: ResumenMensaje | null;
+}
+
+export interface ContactosChat {
+  general: { ultimoMensaje: ResumenMensaje | null };
+  contactos: ContactoChat[];
+}

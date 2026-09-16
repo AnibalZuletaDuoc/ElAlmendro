@@ -4,32 +4,27 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Marco from '@/components/Marco';
 import { api, ErrorApi, ProyectoItem } from '@/lib/api';
+import { useDatosCache } from '@/lib/cacheDatos';
 
 /** Proyectos del trabajador: cada uno es la raiz de su propio mapa de nodos. */
 export default function Panel() {
   const router = useRouter();
 
-  const [proyectos, setProyectos] = useState<ProyectoItem[]>([]);
-  const [cargando, setCargando] = useState(true);
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editando, setEditando] = useState<ProyectoItem | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
-  const cargar = useCallback(async () => {
-    const lista = await api.get<ProyectoItem[]>('/proyectos/mios');
-    setProyectos(lista);
-  }, []);
+  const pedir = useCallback(() => api.get<ProyectoItem[]>('/proyectos/mios'), []);
+  // Al volver desde el mapa de nodos, los proyectos ya estan en pantalla.
+  const { datos, cargando, error, recargar: cargar } = useDatosCache('proyectos:mios', pedir);
+  const proyectos = datos ?? [];
 
   useEffect(() => {
-    setCargando(true);
-    cargar()
-      .catch((err) => {
-        if (err instanceof ErrorApi && err.estado === 401) router.replace('/login');
-        else setAviso('No se pudo conectar con el servidor.');
-      })
-      .finally(() => setCargando(false));
-  }, [cargar, router]);
+    if (!error) return;
+    if (error instanceof ErrorApi && error.estado === 401) router.replace('/login');
+    else setAviso('No se pudo conectar con el servidor.');
+  }, [error, router]);
 
   const proyecto = proyectos.find((p) => p.id === seleccionado) ?? null;
 

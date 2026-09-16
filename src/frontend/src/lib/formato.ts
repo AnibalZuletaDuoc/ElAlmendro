@@ -74,3 +74,19 @@ export function fechaLarga(clave: string): string {
 export function horasBreves(segundos: number): string {
   return `${(segundos / 3600).toFixed(1).replace('.', ',')} h`;
 }
+
+/** "Hoy", "Ayer" o "lunes 14 de septiembre": separador de dias del chat. */
+export function diaRelativo(iso: string): string {
+  const opciones: Intl.DateTimeFormatOptions = { timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit' };
+  const clave = new Date(iso).toLocaleDateString('es-CL', opciones);
+  const hoy = new Date();
+  if (clave === hoy.toLocaleDateString('es-CL', opciones)) return 'Hoy';
+  const ayer = new Date(hoy.getTime() - 24 * 60 * 60 * 1000);
+  if (clave === ayer.toLocaleDateString('es-CL', opciones)) return 'Ayer';
+  return new Date(iso).toLocaleDateString('es-CL', {
+    timeZone: ZONA,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}

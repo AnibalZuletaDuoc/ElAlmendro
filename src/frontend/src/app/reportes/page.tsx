@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts';
 import Marco from '@/components/Marco';
+import GraficoBarras from '@/components/reportes/GraficoBarras';
 import { api, ErrorApi } from '@/lib/api';
+import { useDatosCache } from '@/lib/cacheDatos';
 import { HorasActividad, HorasTrabajador } from '@/lib/tipos';
 import { duracion } from '@/lib/formato';
 
@@ -20,8 +19,6 @@ const RANGOS = [
 export default function Reportes() {
   const router = useRouter();
   const [dias, setDias] = useState(30);
-  const [trabajadores, setTrabajadores] = useState<HorasTrabajador[]>([]);
-  const [actividades, setActividades] = useState<HorasActividad[]>([]);
 
   const cargar = useCallback(async () => {
     const hasta = new Date();
@@ -29,24 +26,27 @@ export default function Reportes() {
     desde.setDate(desde.getDate() - dias);
     const q = `desde=${desde.toISOString()}&hasta=${hasta.toISOString()}`;
 
-    const [t, a] = await Promise.all([
+    const [trabajadores, actividades] = await Promise.all([
       api.get<HorasTrabajador[]>(`/reportes/horas?${q}`),
       api.get<HorasActividad[]>(`/reportes/actividades?${q}`),
     ]);
-    setTrabajadores(t);
-    setActividades(a);
+    return { trabajadores, actividades };
   }, [dias]);
 
+  // Al volver a esta pantalla se pinta con lo ultimo visto y revalida detras.
+  const { datos, cargando, error } = useDatosCache(`reportes:${dias}`, cargar);
+  const trabajadores = datos?.trabajadores ?? [];
+  const actividades = datos?.actividades ?? [];
+
   useEffect(() => {
-    cargar().catch((err) => {
-      if (err instanceof ErrorApi && err.estado === 401) router.replace('/login');
-    });
-  }, [cargar, router]);
+    if (error instanceof ErrorApi && error.estado === 401) router.replace('/login');
+  }, [error, router]);
 
   const totalSeg = trabajadores.reduce((s, t) => s + t.segundos, 0);
   const grafico = actividades.map((a) => ({
-    nombre: a.actividad.length > 26 ? a.actividad.slice(0, 26) + '…' : a.actividad,
-    horas: Number((a.segundos / 3600).toFixed(1)),
+    nombre: a.actividad,
+    valor: Number((a.segundos / 3600).toFixed(1)),
+    etiqueta: duracion(a.segundos),
   }));
 
   return (
@@ -69,17 +69,22 @@ export default function Reportes() {
       }
     >
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Indicador etiqueta="Horas del periodo" valor={duracion(totalSeg)} />
-        <Indicador etiqueta="Trabajadores con registro" valor={String(trabajadores.length)} />
+        <Indicador etiqueta="Horas del periodo" valor={cargando ? null : duracion(totalSeg)} />
+        <Indicador
+          etiqueta="Trabajadores con registro"
+          valor={cargando ? null : String(trabajadores.length)}
+        />
         <Indicador
           etiqueta="Actividades trabajadas"
-          valor={String(actividades.length)}
+          valor={cargando ? null : String(actividades.length)}
         />
       </div>
 
       <section className="mb-4 rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur">
         <h2 className="mb-4 font-bold text-white">Horas por trabajador</h2>
-        {trabajadores.length === 0 ? (
+        {cargando ? (
+          <Esqueleto filas={3} />
+        ) : trabajadores.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-500">
             Sin registros en el periodo seleccionado.
           </p>
@@ -117,56 +122,46 @@ export default function Reportes() {
 
       <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur">
         <h2 className="mb-4 font-bold text-white">Horas por actividad</h2>
-        {grafico.length === 0 ? (
+        {cargando ? (
+          <Esqueleto filas={5} />
+        ) : grafico.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-500">
             Sin registros en el periodo seleccionado.
           </p>
         ) : (
-          <div style={{ height: `${Math.max(240, grafico.length * 34)}px` }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={grafico} layout="vertical" margin={{ left: 12, right: 24 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} unit=" h" />
-                <YAxis
-                  type="category"
-                  dataKey="nombre"
-                  width={190}
-                  tick={{ fontSize: 11, fill: '#cbd5e1' }}
-                />
-                <Tooltip
-                  formatter={(v: number) => [`${v} h`, 'Horas']}
-                  contentStyle={{
-                    borderRadius: 12,
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    background: '#1e293b',
-                    color: '#e2e8f0',
-                    fontSize: 12,
-                  }}
-                  labelStyle={{ color: '#e2e8f0' }}
-                />
-                {/* Sin animacion: al animarse, las barras conservan la
-                    geometria del contenedor anterior cuando este cambia de
-                    ancho, y quedan dibujadas a una escala que no corresponde. */}
-                <Bar
-                  dataKey="horas"
-                  fill="#38bdf8"
-                  radius={[0, 6, 6, 0]}
-                  isAnimationActive={false}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <GraficoBarras datos={grafico} unidad="h" />
         )}
       </section>
     </Marco>
   );
 }
 
-function Indicador({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+function Indicador({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur">
       <p className="text-xs text-slate-400">{etiqueta}</p>
-      <p className="mt-1 text-xl font-bold text-white">{valor}</p>
+      {valor === null ? (
+        <div className="mt-2 h-6 w-20 animate-pulse rounded-md bg-white/10" />
+      ) : (
+        <p className="mt-1 text-xl font-bold text-white">{valor}</p>
+      )}
+    </div>
+  );
+}
+
+/** Placeholder con la forma del contenido: la pantalla no salta al llegar los datos. */
+function Esqueleto({ filas }: { filas: number }) {
+  return (
+    <div className="flex flex-col gap-3 py-1">
+      {Array.from({ length: filas }, (_, i) => (
+        <div key={i} className="flex items-center gap-4">
+          <div className="h-3.5 w-40 animate-pulse rounded bg-white/10" />
+          <div
+            className="h-3.5 animate-pulse rounded bg-white/5"
+            style={{ width: `${70 - i * 11}%` }}
+          />
+        </div>
+      ))}
     </div>
   );
 }

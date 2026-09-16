@@ -26,6 +26,7 @@ const prisma = new PrismaClient();
 // Solo para desarrollo local. En cualquier otro ambiente las credenciales
 // se crean a mano y nunca se versionan.
 const CLAVE_DEMO = 'Timeflow2026!';
+const CLAVE_ADMIN = '12345';
 
 /**
  * Dias corridos hacia atras que se generan de historial.
@@ -37,15 +38,16 @@ const DIAS_HISTORIAL = 90;
 
 async function main() {
   const hash = await argon2.hash(CLAVE_DEMO);
+  const hashAdmin = await argon2.hash(CLAVE_ADMIN);
 
   // ----------------------------------------------------------- usuarios
 
   const admin = await prisma.usuario.upsert({
-    where: { email: 'admin@timeflow.cl' },
+    where: { email: 'admin@admin.cl' },
     update: {},
     create: {
-      email: 'admin@timeflow.cl',
-      hashContrasena: hash,
+      email: 'admin@admin.cl',
+      hashContrasena: hashAdmin,
       nombreCompleto: 'Administrador TimeFlow',
       rol: Rol.ADMINISTRADOR,
     },
@@ -295,7 +297,7 @@ async function main() {
   await generarHistorial(trabajador.id, segundo.id, proyecto.id);
 
   console.log('\n  Datos iniciales listos.\n');
-  console.log(`    admin@timeflow.cl        / ${CLAVE_DEMO}   (administrador)`);
+  console.log(`    admin@admin.cl           / ${CLAVE_ADMIN}       (administrador)`);
   console.log(`    supervisor@timeflow.cl   / ${CLAVE_DEMO}   (Valeria Miranda - supervisor)`);
   console.log(`    trabajador@timeflow.cl   / ${CLAVE_DEMO}   (Camila Soto)`);
   console.log(`    trabajador2@timeflow.cl  / ${CLAVE_DEMO}   (Diego Fuentes)\n`);

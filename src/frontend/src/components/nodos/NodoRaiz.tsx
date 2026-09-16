@@ -1,12 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, type NodeProps } from '@xyflow/react';
+import type { Orientacion } from '@/lib/mapaMental';
+import { disposicionNodo } from './orientacion';
 
 export interface DatosNodoRaiz {
   nombre: string;
   tieneHijos: boolean;
   expandido: boolean;
+  orientacion: Orientacion;
   onAlternar: () => void;
   onAgregarHija: (titulo: string) => void;
   [clave: string]: unknown;
@@ -19,6 +22,7 @@ export interface DatosNodoRaiz {
  */
 export default function NodoRaiz({ data }: NodeProps) {
   const d = data as DatosNodoRaiz;
+  const disposicion = disposicionNodo(d.orientacion);
   const [agregando, setAgregando] = useState(false);
   const [texto, setTexto] = useState('');
 
@@ -42,7 +46,7 @@ export default function NodoRaiz({ data }: NodeProps) {
         <span className="text-sm font-bold leading-snug text-white">{d.nombre}</span>
         <Handle
           type="source"
-          position={Position.Right}
+          position={disposicion.salida}
           className="!h-3 !w-3 !border-2 !border-sky-300 !bg-slate-950"
         />
 
@@ -53,16 +57,16 @@ export default function NodoRaiz({ data }: NodeProps) {
               d.onAlternar();
             }}
             title={d.expandido ? 'Contraer' : 'Desplegar'}
-            className="absolute -right-3 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full bg-slate-800 text-white ring-1 ring-white/25 hover:bg-slate-700"
+            className={`absolute ${disposicion.claseBoton} grid h-6 w-6 place-items-center rounded-full bg-slate-800 text-white ring-1 ring-white/25 hover:bg-slate-700`}
           >
             <svg
               viewBox="0 0 24 24"
-              className={`h-3.5 w-3.5 transition-transform ${d.expandido ? 'rotate-90' : ''}`}
+              className={`h-3.5 w-3.5 transition-transform ${d.expandido ? disposicion.claseFlechaExpandida : ''}`}
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="m9 6 6 6-6 6" />
+              <path strokeLinecap="round" strokeLinejoin="round" d={disposicion.trazoFlecha} />
             </svg>
           </button>
         )}

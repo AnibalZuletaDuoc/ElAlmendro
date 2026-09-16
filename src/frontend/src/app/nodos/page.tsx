@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  ReactFlow, Background, Controls, Connection, Edge, Node, NodeMouseHandler,
+  ReactFlow, Background, Controls, Connection, Edge, Node, NodeMouseHandler, useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import Marco from '@/components/Marco';
@@ -13,10 +13,30 @@ import NodoRaiz, { DatosNodoRaiz } from '@/components/nodos/NodoRaiz';
 import PanelTarea from '@/components/nodos/PanelTarea';
 import { api, ErrorApi } from '@/lib/api';
 import { Derivacion, NodoActividad } from '@/lib/tipos';
-import { calcularArbolHorizontal } from '@/lib/mapaMental';
+import { calcularArbol, Orientacion } from '@/lib/mapaMental';
 
 const RAIZ = 'raiz-proyecto';
+
+/**
+ * Reencuadra el mapa cuando cambia su forma (expandir, colapsar, recargar,
+ * girar). Antes se lograba remontando ReactFlow entero con `key`, lo que
+ * destruia y volvia a crear todos los nodos en cada clic.
+ */
+function AjustarVista({ clave }: { clave: string }) {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    const id = requestAnimationFrame(() => fitView({ padding: 0.3, duration: 250 }));
+    return () => cancelAnimationFrame(id);
+  }, [clave, fitView]);
+  return null;
+}
 const TIPOS_NODO = { raiz: NodoRaiz, tarea: NodoTarea };
+const CLAVE_ORIENTACION = 'tf_nodos_orientacion';
+
+const ORIENTACIONES: { valor: Orientacion; texto: string; icono: string; titulo: string }[] = [
+  { valor: 'horizontal', texto: 'Horizontal', icono: '→', titulo: 'De izquierda a derecha' },
+  { valor: 'vertical', texto: 'Vertical', icono: '↓', titulo: 'De arriba a abajo' },
+];
 
 /** US-05 y US-06 — mapa mental de tareas del proyecto y sus derivaciones. */
 export default function Pagina() {
@@ -49,6 +69,26 @@ function Nodos() {
   const [expandidoRaiz, setExpandidoRaiz] = useState(false);
   const [expandido, setExpandido] = useState<Set<string>>(new Set());
   const [tareaSeleccionada, setTareaSeleccionada] = useState<string | null>(null);
+
+  // Sentido del arbol. Se recuerda en el navegador para no tener que elegirlo
+  // en cada visita; parte horizontal, que es como estaba antes.
+  const [orientacion, setOrientacion] = useState<Orientacion>('horizontal');
+  useEffect(() => {
+    try {
+      const guardada = window.localStorage.getItem(CLAVE_ORIENTACION);
+      if (guardada === 'vertical' || guardada === 'horizontal') setOrientacion(guardada);
+    } catch {
+      /* almacenamiento bloqueado: queda la orientacion por defecto */
+    }
+  }, []);
+  function cambiarOrientacion(valor: Orientacion) {
+    setOrientacion(valor);
+    try {
+      window.localStorage.setItem(CLAVE_ORIENTACION, valor);
+    } catch {
+      /* sin persistencia, pero el cambio aplica igual en esta visita */
+    }
+  }
 
   const alHacerClicEnNodo: NodeMouseHandler = useCallback((_evento, nodo) => {
     if (nodo.id === RAIZ) return;
@@ -124,10 +164,11 @@ function Nodos() {
   }
 
   const { nodos, aristas } = useMemo(() => {
-    const { posiciones, yRaiz, raicesProyecto } = calcularArbolHorizontal(
+    const { posiciones, posicionRaiz, raicesProyecto } = calcularArbol(
       actividades,
       expandidoRaiz,
       expandido,
+      orientacion,
     );
     const porId = new Map(actividades.map((a) => [a.id, a]));
 
@@ -139,10 +180,11 @@ function Nodos() {
         nombre: nombreProyecto,
         tieneHijos: raicesProyecto.length > 0,
         expandido: expandidoRaiz,
+        orientacion,
         onAlternar: alternarRaiz,
         onAgregarHija: (titulo: string) => agregarTarea(titulo),
       };
-      nodos.push({ id: RAIZ, type: 'raiz', position: { x: 0, y: yRaiz }, data: datosRaiz });
+      nodos.push({ id: RAIZ, type: 'raiz', position: posicionRaiz, data: datosRaiz });
     }
 
     for (const pos of posiciones.values()) {
@@ -153,6 +195,7 @@ function Nodos() {
         color: pos.color,
         tieneHijos: pos.tieneHijos,
         expandido: expandido.has(a.id),
+        orientacion,
         onAlternar: () => alternarNodo(a.id),
         onAgregarHija: (titulo: string) => agregarTarea(titulo, a.id),
       };
@@ -179,7 +222,7 @@ function Nodos() {
     }
 
     return { nodos, aristas };
-  }, [actividades, nombreProyecto, expandidoRaiz, expandido, agregarTarea]);
+  }, [actividades, nombreProyecto, expandidoRaiz, expandido, orientacion, agregarTarea]);
 
   if (!proyectoId) {
     return (
@@ -213,9 +256,30 @@ function Nodos() {
 
       <div className="flex flex-col gap-4 lg:flex-row">
         <section className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur">
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-2">
+            <p className="text-xs text-slate-400">Sentido del arbol</p>
+            <div className="flex rounded-lg border border-white/10 bg-slate-950/60 p-0.5" role="radiogroup">
+              {ORIENTACIONES.map((o) => (
+                <button
+                  key={o.valor}
+                  role="radio"
+                  aria-checked={orientacion === o.valor}
+                  title={o.titulo}
+                  onClick={() => cambiarOrientacion(o.valor)}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition ${
+                    orientacion === o.valor
+                      ? 'bg-sky-500/20 font-semibold text-sky-200'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span aria-hidden>{o.icono}</span>
+                  {o.texto}
+                </button>
+              ))}
+            </div>
+          </div>
           <div style={{ height: '32rem' }}>
             <ReactFlow
-              key={`${cargas}-${expandidoRaiz}-${expandido.size}-${[...expandido].sort().join(',')}`}
               nodes={nodos}
               edges={aristas}
               nodeTypes={TIPOS_NODO}
@@ -227,6 +291,9 @@ function Nodos() {
               proOptions={{ hideAttribution: true }}
               colorMode="dark"
             >
+              <AjustarVista
+                clave={`${orientacion}-${cargas}-${expandidoRaiz}-${[...expandido].sort().join(',')}`}
+              />
               <Background color="rgba(255,255,255,0.08)" gap={18} />
               <Controls showInteractive={false} />
             </ReactFlow>
@@ -234,7 +301,8 @@ function Nodos() {
           <p className="border-t border-white/10 px-4 py-2 text-[11px] text-slate-500">
             Haz clic en el circulo del borde de una burbuja para desplegar sus tareas, pasa el
             mouse sobre ella para agregarle una nueva, o arrastra desde su borde hacia otra para
-            unirlas.
+            unirlas. Con el selector de arriba eliges si el arbol crece hacia la derecha o hacia
+            abajo.
           </p>
         </section>
 

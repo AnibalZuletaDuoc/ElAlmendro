@@ -6,6 +6,18 @@ import { obtenerPermisosDeRol } from '../../common/rbac';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 
+/**
+ * Duracion del token de acceso segun JWT_ACCESO_TTL / JWT_ACCESS_TTL
+ * ("8h", "15m", ...). Los valores "indefinido", "never" o "0" desactivan la
+ * expiracion: decision del equipo mientras no exista el refresco de tokens,
+ * para que nadie pierda la sesion a mitad del trabajo.
+ */
+export function duracionSesion(): string | null {
+  const ttl = (process.env.JWT_ACCESO_TTL ?? process.env.JWT_ACCESS_TTL ?? 'indefinido').trim();
+  if (!ttl || ['indefinido', 'never', '0'].includes(ttl.toLowerCase())) return null;
+  return ttl;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -47,9 +59,9 @@ export class AuthService {
       },
       {
         secret: process.env.JWT_ACCESO_SECRET ?? process.env.JWT_ACCESS_SECRET,
-        expiresIn: (process.env.JWT_ACCESO_TTL ??
-          process.env.JWT_ACCESS_TTL ??
-          '8h') as SignOptions['expiresIn'],
+        // Sin `expiresIn` el token no lleva `exp` y la sesion dura hasta que
+        // el usuario la cierre (ver duracionSesion).
+        ...(duracionSesion() ? { expiresIn: duracionSesion() as SignOptions['expiresIn'] } : {}),
       },
     );
 

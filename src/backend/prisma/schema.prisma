@@ -103,6 +103,8 @@ model Usuario {
   derivacionesRecibidas Derivacion[]        @relation("DerivacionA")
   auditoria             RegistroAuditoria[]
   tokensRefresco        TokenRefresco[]
+  mensajesEnviados      MensajeChat[]       @relation("MensajeEmisor")
+  mensajesRecibidos     MensajeChat[]       @relation("MensajeReceptor")
 
   @@index([rol, activo])
   @@map("usuarios")
@@ -357,4 +359,27 @@ model RegistroAuditoria {
 
   @@index([tipoEntidad, entidadId, ocurridoEn])
   @@map("registros_auditoria")
+}
+
+// ------------------------------- Chat en vivo -------------------------------
+
+// Mensaje del chat entre trabajadores. Con `receptorId` es una conversacion
+// privada entre dos personas; sin el, va al canal general del equipo. La
+// presencia (en linea / desconectado) no se persiste: vive en la memoria del
+// gateway de Socket.IO mientras el usuario mantenga una pestana abierta.
+model MensajeChat {
+  id         String    @id @default(uuid()) @db.Uuid
+  emisorId   String    @db.Uuid
+  emisor     Usuario   @relation("MensajeEmisor", fields: [emisorId], references: [id], onDelete: Cascade)
+  receptorId String?   @db.Uuid
+  receptor   Usuario?  @relation("MensajeReceptor", fields: [receptorId], references: [id], onDelete: Cascade)
+  cuerpo     String
+  creadoEn   DateTime  @default(now()) @db.Timestamptz(3)
+  // Solo aplica a mensajes privados: el canal general no lleva lectura.
+  leidoEn    DateTime? @db.Timestamptz(3)
+
+  @@index([emisorId, receptorId, creadoEn])
+  @@index([receptorId, leidoEn])
+  @@index([creadoEn])
+  @@map("mensajes_chat")
 }

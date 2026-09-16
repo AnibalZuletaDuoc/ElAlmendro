@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { api, ErrorApi, Usuario } from '@/lib/api';
+import { guardarCacheSesion, limpiarCacheSesion } from '@/lib/cacheSesion';
 
 /** US-01 — inicio de sesion. */
 export default function Login() {
@@ -18,9 +19,11 @@ export default function Login() {
     setError(null);
     setEnviando(true);
     try {
-      await api.post<Usuario>('/auth/login', { email, contrasena });
+      limpiarCacheSesion();
+      const usuario = await api.post<Usuario>('/auth/login', { email, contrasena });
+      // El panel se pinta de inmediato con el usuario recien autenticado.
+      guardarCacheSesion({ usuario, jornada: null });
       router.push('/panel');
-      router.refresh();
     } catch (err) {
       setError(
         err instanceof ErrorApi
@@ -34,7 +37,7 @@ export default function Login() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950">
       <Image
-        src="/images/fondo-login.png"
+        src="/images/fondo-login.jpg"
         alt=""
         fill
         priority
@@ -134,16 +137,6 @@ export default function Login() {
               {enviando ? 'Ingresando…' : 'Ingresar'}
             </button>
           </form>
-
-          <div className="my-6 h-px bg-white/10" />
-
-          <p className="text-center text-xs leading-relaxed text-slate-500">
-            Cuentas de demostración
-            <br />
-            trabajador@timeflow.cl · admin@timeflow.cl
-            <br />
-            Clave: Timeflow2026!
-          </p>
         </div>
       </div>
     </main>

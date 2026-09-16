@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, type NodeProps } from '@xyflow/react';
+import type { Orientacion } from '@/lib/mapaMental';
+import { disposicionNodo } from './orientacion';
 
 const COLOR_ESTADO: Record<string, string> = {
   PENDIENTE: '#38bdf8',
@@ -18,19 +20,21 @@ export interface DatosNodoTarea {
   color: string;
   tieneHijos: boolean;
   expandido: boolean;
+  orientacion: Orientacion;
   onAlternar: () => void;
   onAgregarHija: (titulo: string) => void;
   [clave: string]: unknown;
 }
 
 /**
- * Burbuja de tarea del mapa mental horizontal. El color identifica el nivel
+ * Burbuja de tarea del mapa mental (horizontal o vertical). El color identifica el nivel
  * de profundidad; el punto interior indica el estado real de la tarea. El
  * boton circular del borde despliega o repliega sus hijas, igual que en el
  * mapa mental de referencia — parte siempre colapsado.
  */
 export default function NodoTarea({ data }: NodeProps) {
   const d = data as DatosNodoTarea;
+  const disposicion = disposicionNodo(d.orientacion);
   const [agregando, setAgregando] = useState(false);
   const [texto, setTexto] = useState('');
 
@@ -49,7 +53,7 @@ export default function NodoTarea({ data }: NodeProps) {
       >
         <Handle
           type="target"
-          position={Position.Left}
+          position={disposicion.entrada}
           className="!h-2.5 !w-2.5 !border-2 !bg-slate-950"
           style={{ borderColor: d.color }}
         />
@@ -60,7 +64,7 @@ export default function NodoTarea({ data }: NodeProps) {
         <span className="truncate text-xs font-semibold text-white">{d.titulo}</span>
         <Handle
           type="source"
-          position={Position.Right}
+          position={disposicion.salida}
           className="!h-2.5 !w-2.5 !border-2 !bg-slate-950"
           style={{ borderColor: d.color }}
         />
@@ -72,16 +76,16 @@ export default function NodoTarea({ data }: NodeProps) {
               d.onAlternar();
             }}
             title={d.expandido ? 'Contraer' : 'Desplegar'}
-            className="absolute -right-3 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full bg-slate-800 text-white ring-1 ring-white/25 hover:bg-slate-700"
+            className={`absolute ${disposicion.claseBoton} grid h-5 w-5 place-items-center rounded-full bg-slate-800 text-white ring-1 ring-white/25 hover:bg-slate-700`}
           >
             <svg
               viewBox="0 0 24 24"
-              className={`h-3 w-3 transition-transform ${d.expandido ? 'rotate-90' : ''}`}
+              className={`h-3 w-3 transition-transform ${d.expandido ? disposicion.claseFlechaExpandida : ''}`}
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="m9 6 6 6-6 6" />
+              <path strokeLinecap="round" strokeLinejoin="round" d={disposicion.trazoFlecha} />
             </svg>
           </button>
         )}

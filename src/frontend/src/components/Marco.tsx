@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,6 +8,17 @@ import { PERMISOS, PermisoCodigo } from '@/lib/rbac';
 import { api, ErrorApi, Jornada, Usuario } from '@/lib/api';
 import { iniciales } from '@/lib/formato';
 import { ContextoSesion } from '@/lib/sesion';
+import { ProveedorChat } from '@/lib/chat';
+import { cerrarSocketChat } from '@/lib/socket';
+import InsigniaChat from '@/components/chat/InsigniaChat';
+import {
+  guardarCacheSesion,
+  leerCacheSesion,
+  leerCacheSesionServidor,
+  limpiarCacheSesion,
+  suscribirCacheSesion,
+} from '@/lib/cacheSesion';
+import { precalentarRutas } from '@/lib/precalentar';
 
 interface SeccionNav {
   href: string;
@@ -41,6 +52,11 @@ const SECCIONES: SeccionNav[] = [
     texto: 'Usuarios y Roles',
     permisoRequerido: PERMISOS.USUARIOS_VER,
   },
+  {
+    href: '/chat',
+    texto: 'Chat del equipo',
+    permisoRequerido: PERMISOS.CHAT_USAR,
+  },
 ];
 
 /**
@@ -61,41 +77,69 @@ export default function Marco({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [listo, setListo] = useState(false);
-  const [jornada, setJornada] = useState<Jornada | null>(null);
+  // Usuario y jornada salen de la cache de sesion: si ya hay una, la pantalla
+  // se pinta al instante y la API solo confirma en segundo plano (y expulsa al
+  // login si la sesion ya no vale). En el servidor la cache es null, asi que
+  // el HTML inicial es "Cargando…" tanto en servidor como en cliente.
+  const cache = useSyncExternalStore(suscribirCacheSesion, leerCacheSesion, leerCacheSesionServidor);
+  const usuario: Usuario | null = cache?.usuario ?? null;
+  const jornada: Jornada | null = cache?.jornada ?? null;
+  const [respondio, setRespondio] = useState(false);
+  const listo = usuario !== null || respondio;
   const [avisoJornada, setAvisoJornada] = useState<string | null>(null);
 
   useEffect(() => {
+    let vigente = true;
     (async () => {
       try {
-        setUsuario(await api.get<Usuario>('/auth/yo'));
-        setJornada(await api.get<Jornada | null>('/jornadas/actual'));
+        // Las dos peticiones son independientes: en paralelo, no en cascada.
+        const [u, j] = await Promise.all([
+          api.get<Usuario>('/auth/yo'),
+          api.get<Jornada | null>('/jornadas/actual'),
+        ]);
+        if (!vigente) return;
+        guardarCacheSesion({ usuario: u, jornada: j });
       } catch (err) {
         if (err instanceof ErrorApi && err.estado === 401) {
+          limpiarCacheSesion();
           router.replace('/login');
           return;
         }
       } finally {
-        setListo(true);
+        if (vigente) setRespondio(true);
       }
     })();
+    return () => {
+      vigente = false;
+    };
   }, [router]);
 
   async function alternarJornada() {
     setAvisoJornada(null);
     try {
       await api.post(jornada ? '/jornadas/salida' : '/jornadas/entrada');
-      setJornada(await api.get<Jornada | null>('/jornadas/actual'));
+      const j = await api.get<Jornada | null>('/jornadas/actual');
+      if (usuario) guardarCacheSesion({ usuario, jornada: j });
     } catch (err) {
       setAvisoJornada(err instanceof ErrorApi ? err.message : 'No se pudo actualizar la jornada.');
     }
   }
 
   async function salir() {
+    cerrarSocketChat();
+    limpiarCacheSesion();
     await api.post('/auth/logout');
     router.replace('/login');
   }
+
+  // En desarrollo, compila por adelantado las demas pantallas del menu.
+  useEffect(() => {
+    if (!usuario) return;
+    const rutas = SECCIONES.filter(
+      (s) => !s.permisoRequerido || usuario.permisos?.includes(s.permisoRequerido),
+    ).map((s) => s.href);
+    precalentarRutas(rutas.filter((h) => h !== activo));
+  }, [usuario, activo]);
 
   if (!listo) {
     return (
@@ -111,7 +155,7 @@ export default function Marco({
     return usuario?.permisos?.includes(s.permisoRequerido) ?? false;
   });
 
-  return (
+  const contenido = (
     <ContextoSesion.Provider value={usuario}>
       <div className="flex min-h-screen bg-slate-950 text-slate-100">
         <aside className="hidden w-60 shrink-0 flex-col gap-1 border-r border-white/10 bg-slate-900/60 p-4 md:flex">
@@ -133,13 +177,14 @@ export default function Marco({
             <Link
               key={s.href}
               href={s.href}
-              className={`rounded-xl px-3 py-2.5 text-sm transition ${
+              className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition ${
                 activo === s.href
                   ? 'bg-sky-500/15 font-semibold text-sky-300'
                   : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
               }`}
             >
-              {s.texto}
+              <span className="flex-1">{s.texto}</span>
+              {s.href === '/chat' && <InsigniaChat />}
             </Link>
           ))}
 
@@ -196,4 +241,8 @@ export default function Marco({
       </div>
     </ContextoSesion.Provider>
   );
+
+  // El socket de chat solo se abre con sesion valida: sin usuario no hay
+  // presencia que anunciar ni cookie que el gateway pueda verificar.
+  return usuario ? <ProveedorChat usuarioId={usuario.id}>{contenido}</ProveedorChat> : contenido;
 }

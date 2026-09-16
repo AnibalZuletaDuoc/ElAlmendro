@@ -33,7 +33,7 @@ en UTC, convirtiéndose a `America/Santiago` únicamente al mostrarse.
 | Frontend | Next.js 15 + React 19 |
 | Estilos | Tailwind CSS 4 |
 | Mapa de actividades | React Flow |
-| Gráficos | Recharts |
+| Gráficos | SVG propio (sin librería) |
 | Evidencias | MinIO (compatible S3) |
 | Tiempo real | Socket.IO |
 | Empaquetado | Docker y Docker Compose |
@@ -109,6 +109,7 @@ nunca podria iniciar sesion.
 | Calendario de horas | `/calendario` |
 | Mapa de nodos | `/nodos` |
 | Reportes de horas | `/reportes` |
+| Chat del equipo (en vivo, con presencia y chats privados) | `/chat` |
 
 | Servicio | URL |
 |---|---|

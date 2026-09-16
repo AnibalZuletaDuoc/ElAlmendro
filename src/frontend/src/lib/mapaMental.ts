@@ -12,8 +12,20 @@ export const PALETA_PROFUNDIDAD = [
   '#facc15', // nivel 6 — amber
 ];
 
-const ESPACIO_X = 250;
-const ESPACIO_Y = 64;
+/**
+ * Sentido en que crece el arbol: `horizontal` (de izquierda a derecha, cada
+ * nivel una columna mas a la derecha) o `vertical` (de arriba a abajo, cada
+ * nivel una fila mas abajo, tipo organigrama).
+ */
+export type Orientacion = 'horizontal' | 'vertical';
+
+/** Distancia entre niveles y entre hermanos, en cada orientacion. */
+const ESPACIO: Record<Orientacion, { nivel: number; hermano: number }> = {
+  horizontal: { nivel: 250, hermano: 64 },
+  // Las burbujas son anchas (hasta 210 px) y bajas: de arriba a abajo los
+  // hermanos necesitan mas separacion lateral y los niveles menos.
+  vertical: { nivel: 120, hermano: 236 },
+};
 
 export interface NodoMapa {
   id: string;
@@ -24,23 +36,25 @@ export interface NodoMapa {
   tieneHijos: boolean;
 }
 
-export interface ArbolHorizontal {
+export interface ArbolCalculado {
   posiciones: Map<string, NodoMapa>;
-  yRaiz: number;
+  posicionRaiz: { x: number; y: number };
   raicesProyecto: NodoActividad[];
 }
 
 /**
- * Layout de arbol horizontal (izquierda a derecha), tipo mapa mental
- * colapsable: cada tarea avanza una columna hacia la derecha por nivel, y solo
- * se calcula posicion para las tareas visibles — una rama colapsada no ocupa
- * espacio ni aparece en el resultado.
+ * Layout de arbol colapsable tipo mapa mental. Primero se resuelve la forma
+ * abstracta (nivel de profundidad y "carril" de cada tarea, centrando cada
+ * padre sobre sus hijas visibles) y al final se traduce a coordenadas segun
+ * la orientacion. Solo se calcula posicion para las tareas visibles: una
+ * rama colapsada no ocupa espacio ni aparece en el resultado.
  */
-export function calcularArbolHorizontal(
+export function calcularArbol(
   actividades: NodoActividad[],
   expandidoRaiz: boolean,
   expandido: ReadonlySet<string>,
-): ArbolHorizontal {
+  orientacion: Orientacion,
+): ArbolCalculado {
   const hijosPorPadre = new Map<string, NodoActividad[]>();
   const raicesProyecto: NodoActividad[] = [];
   for (const a of actividades) {
@@ -52,42 +66,47 @@ export function calcularArbolHorizontal(
     }
   }
 
+  const espacio = ESPACIO[orientacion];
+  const coordenadas = (profundidad: number, carril: number) =>
+    orientacion === 'horizontal'
+      ? { x: profundidad * espacio.nivel, y: carril * espacio.hermano }
+      : { x: carril * espacio.hermano, y: profundidad * espacio.nivel };
+
   const posiciones = new Map<string, NodoMapa>();
-  let contadorFila = 0;
+  let contadorCarril = 0;
 
   function ubicar(a: NodoActividad, profundidad: number): number {
     const hijos = hijosPorPadre.get(a.id) ?? [];
     const hijosVisibles = expandido.has(a.id) ? hijos : [];
 
-    let fila: number;
+    let carril: number;
     if (hijosVisibles.length === 0) {
-      fila = contadorFila;
-      contadorFila += 1;
+      carril = contadorCarril;
+      contadorCarril += 1;
     } else {
-      const filas = hijosVisibles.map((h) => ubicar(h, profundidad + 1));
-      fila = (Math.min(...filas) + Math.max(...filas)) / 2;
+      const carriles = hijosVisibles.map((h) => ubicar(h, profundidad + 1));
+      carril = (Math.min(...carriles) + Math.max(...carriles)) / 2;
     }
 
     posiciones.set(a.id, {
       id: a.id,
-      x: profundidad * ESPACIO_X,
-      y: fila * ESPACIO_Y,
+      ...coordenadas(profundidad, carril),
       color: PALETA_PROFUNDIDAD[(profundidad - 1) % PALETA_PROFUNDIDAD.length],
       profundidad,
       tieneHijos: hijos.length > 0,
     });
-    return fila;
+    return carril;
   }
 
   const raicesVisibles = expandidoRaiz ? raicesProyecto : [];
-  let filaRaiz: number;
+  let carrilRaiz: number;
   if (raicesVisibles.length === 0) {
-    filaRaiz = contadorFila;
-    contadorFila += 1;
+    carrilRaiz = contadorCarril;
+    contadorCarril += 1;
   } else {
-    const filas = raicesVisibles.map((h) => ubicar(h, 1));
-    filaRaiz = (Math.min(...filas) + Math.max(...filas)) / 2;
+    const carriles = raicesVisibles.map((h) => ubicar(h, 1));
+    carrilRaiz = (Math.min(...carriles) + Math.max(...carriles)) / 2;
   }
 
-  return { posiciones, yRaiz: filaRaiz * ESPACIO_Y, raicesProyecto };
+  return { posiciones, posicionRaiz: coordenadas(0, carrilRaiz), raicesProyecto };
 }

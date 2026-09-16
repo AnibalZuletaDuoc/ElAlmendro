@@ -14,6 +14,7 @@ import { CalendarioModule } from './modules/calendario/calendario.module';
 import { UsuariosModule } from './modules/usuarios/usuarios.module';
 import { ProyectosModule } from './modules/proyectos/proyectos.module';
 import { EvidenciasModule } from './modules/evidencias/evidencias.module';
+import { ChatModule } from './modules/chat/chat.module';
 
 /**
  * Raiz de la capa de negocio.
@@ -38,6 +39,7 @@ import { EvidenciasModule } from './modules/evidencias/evidencias.module';
     UsuariosModule,
     ProyectosModule,
     EvidenciasModule,
+    ChatModule,
     // HistorialModule, NotificacionesModule,
   ],
   controllers: [SaludController],

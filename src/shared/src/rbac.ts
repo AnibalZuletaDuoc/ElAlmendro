@@ -33,6 +33,9 @@ export const PERMISOS = {
   // Módulo Usuarios (RBAC)
   USUARIOS_VER: 'usuarios:ver',
   USUARIOS_GESTIONAR: 'usuarios:gestionar',
+
+  // Módulo Chat en vivo
+  CHAT_USAR: 'chat:usar',
 } as const;
 
 export type PermisoCodigo = (typeof PERMISOS)[keyof typeof PERMISOS];
@@ -52,6 +55,7 @@ export const ROLES_PERMISOS: Record<Rol, readonly PermisoCodigo[]> = {
     PERMISOS.NODOS_VER_MAPA,
     PERMISOS.USUARIOS_VER,
     PERMISOS.USUARIOS_GESTIONAR,
+    PERMISOS.CHAT_USAR,
   ],
   SUPERVISOR: [
     PERMISOS.JORNADA_REGISTRAR,
@@ -65,6 +69,7 @@ export const ROLES_PERMISOS: Record<Rol, readonly PermisoCodigo[]> = {
     PERMISOS.NODOS_VER_MAPA,
     PERMISOS.USUARIOS_VER,
     PERMISOS.USUARIOS_GESTIONAR,
+    PERMISOS.CHAT_USAR,
   ],
   TRABAJADOR: [
     PERMISOS.JORNADA_REGISTRAR,
@@ -72,6 +77,7 @@ export const ROLES_PERMISOS: Record<Rol, readonly PermisoCodigo[]> = {
     PERMISOS.ACTIVIDADES_VER_PROPIAS,
     PERMISOS.CALENDARIO_VER_PROPIO,
     PERMISOS.NODOS_VER_MAPA,
+    PERMISOS.CHAT_USAR,
   ],
 };
 
