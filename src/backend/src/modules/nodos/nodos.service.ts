@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
+import { UsuarioActual } from '../../common/usuario-actual.decorator';
 
 /**
  * US-05 y US-06 — mapa de nodos y derivaciones.
@@ -13,11 +14,21 @@ import { PrismaService } from '../../infra/prisma/prisma.service';
 export class NodosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async arbol(proyectoId?: string) {
+  async arbol(u: UsuarioActual, proyectoId?: string) {
+    const esTrabajador = u.rol === 'TRABAJADOR';
+
     const actividades = await this.prisma.actividad.findMany({
       where: {
         eliminadoEn: null,
         ...(proyectoId ? { proyectoId } : {}),
+        ...(esTrabajador
+          ? {
+              OR: [
+                { responsableId: u.id },
+                { hijas: { some: { responsableId: u.id, eliminadoEn: null } } },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ actividadPadreId: 'asc' }, { orden: 'asc' }],
       select: {
@@ -27,11 +38,17 @@ export class NodosService {
         prioridad: true,
         actividadPadreId: true,
         posicionNodo: true,
-        responsable: { select: { nombreCompleto: true } },
+        responsableId: true,
+        responsable: { select: { id: true, nombreCompleto: true } },
       },
     });
 
     const derivaciones = await this.prisma.derivacion.findMany({
+      where: esTrabajador
+        ? {
+            OR: [{ deUsuarioId: u.id }, { aUsuarioId: u.id }],
+          }
+        : undefined,
       orderBy: { ocurridoEn: 'desc' },
       take: 20,
       select: {

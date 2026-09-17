@@ -15,7 +15,7 @@ export class ProyectosController {
   /** Proyectos del trabajador de la sesion (propios o donde es miembro). */
   @Get('mios')
   mios(@Usuario() u: UsuarioActual) {
-    return this.proyectos.mios(u.id);
+    return this.proyectos.mios(u);
   }
 
   @Post()
@@ -29,6 +29,6 @@ export class ProyectosController {
     @Usuario() u: UsuarioActual,
     @Body() dto: ActualizarProyectoDto,
   ) {
-    return this.proyectos.actualizar(id, u.id, dto);
+    return this.proyectos.actualizar(id, u, dto);
   }
 }

@@ -169,6 +169,16 @@ export interface Sesion {
   actividad: { id: string; titulo: string };
 }
 
+export interface ProgresoPersonalItem {
+  segundosSemana: number;
+  segundosMes: number;
+  diasLaborados: number;
+  totalJornadas: number;
+  tareasPendientes: number;
+  tareasEnProgreso: number;
+  tareasCompletadas: number;
+}
+
 // ------------------------------- chat -------------------------------
 
 export interface MensajeChat {

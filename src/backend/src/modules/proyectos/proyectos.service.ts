@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CrearProyectoDto } from './dto/crear-proyecto.dto';
 import { ActualizarProyectoDto } from './dto/actualizar-proyecto.dto';
+import { UsuarioActual } from '../../common/usuario-actual.decorator';
 
 /**
  * Proyectos: la unidad que agrupa las tareas de un trabajador. Cada proyecto
@@ -11,12 +12,19 @@ import { ActualizarProyectoDto } from './dto/actualizar-proyecto.dto';
 export class ProyectosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Proyectos donde el usuario es propietario o miembro. */
-  async mios(usuarioId: string) {
+  /** Proyectos del trabajador de la sesion (propios, miembros o donde tiene tareas asignadas; o todos para admin). */
+  async mios(u: UsuarioActual) {
+    const esAdmin = u.rol === 'ADMINISTRADOR';
     const proyectos = await this.prisma.proyecto.findMany({
-      where: {
-        OR: [{ propietarioId: usuarioId }, { miembros: { some: { usuarioId } } }],
-      },
+      where: esAdmin
+        ? {}
+        : {
+            OR: [
+              { propietarioId: u.id },
+              { miembros: { some: { usuarioId: u.id } } },
+              { actividades: { some: { responsableId: u.id, eliminadoEn: null } } },
+            ],
+          },
       orderBy: { creadoEn: 'asc' },
       select: {
         id: true,
@@ -62,11 +70,16 @@ export class ProyectosService {
     return { ...proyecto, totalTareas: 0 };
   }
 
-  async actualizar(id: string, usuarioId: string, dto: ActualizarProyectoDto) {
+  async actualizar(id: string, u: UsuarioActual, dto: ActualizarProyectoDto) {
+    const esAdmin = u.rol === 'ADMINISTRADOR';
     const proyecto = await this.prisma.proyecto.findFirst({
       where: {
         id,
-        OR: [{ propietarioId: usuarioId }, { miembros: { some: { usuarioId } } }],
+        ...(esAdmin
+          ? {}
+          : {
+              OR: [{ propietarioId: u.id }, { miembros: { some: { usuarioId: u.id } } }],
+            }),
       },
       select: { id: true },
     });

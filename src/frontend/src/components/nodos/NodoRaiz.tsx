@@ -11,7 +11,7 @@ export interface DatosNodoRaiz {
   expandido: boolean;
   orientacion: Orientacion;
   onAlternar: () => void;
-  onAgregarHija: (titulo: string) => void;
+  onAgregarHija?: (titulo: string) => void;
   [clave: string]: unknown;
 }
 
@@ -28,7 +28,7 @@ export default function NodoRaiz({ data }: NodeProps) {
 
   function confirmar() {
     const limpio = texto.trim();
-    if (limpio) d.onAgregarHija(limpio);
+    if (limpio && d.onAgregarHija) d.onAgregarHija(limpio);
     setTexto('');
     setAgregando(false);
   }
@@ -90,16 +90,18 @@ export default function NodoRaiz({ data }: NodeProps) {
           className="absolute left-1/2 top-full z-10 mt-2 w-48 -translate-x-1/2 rounded-lg border border-white/20 bg-slate-900 px-2.5 py-1.5 text-[11px] text-white shadow-xl outline-none"
         />
       ) : (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setAgregando(true);
-          }}
-          title="Agregar tarea"
-          className="absolute -right-1.5 -top-1.5 hidden h-6 w-6 place-items-center rounded-full bg-slate-800 text-xs leading-none text-white ring-1 ring-white/20 hover:bg-slate-700 group-hover:grid"
-        >
-          +
-        </button>
+        d.onAgregarHija && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setAgregando(true);
+            }}
+            title="Agregar tarea"
+            className="absolute -right-1.5 -top-1.5 hidden h-6 w-6 place-items-center rounded-full bg-slate-800 text-xs leading-none text-white ring-1 ring-white/20 hover:bg-slate-700 group-hover:grid"
+          >
+            +
+          </button>
+        )
       )}
     </div>
   );

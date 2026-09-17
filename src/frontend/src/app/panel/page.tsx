@@ -2,21 +2,39 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Marco from '@/components/Marco';
-import { api, ErrorApi, ProyectoItem } from '@/lib/api';
+import { api, ErrorApi, ProgresoPersonalItem, ProyectoItem, Sesion } from '@/lib/api';
 import { useDatosCache } from '@/lib/cacheDatos';
+import { useSesion } from '@/lib/sesion';
 
-/** Proyectos del trabajador: cada uno es la raiz de su propio mapa de nodos. */
+function formatearHoras(segundos: number): string {
+  if (!segundos || segundos <= 0) return '0h 0m';
+  const h = Math.floor(segundos / 3600);
+  const m = Math.floor((segundos % 3600) / 60);
+  return `${h}h ${m}m`;
+}
+
+/** Panel principal: adaptativo según rol (Trabajador, Supervisor, Administrador). */
 export default function Panel() {
   const router = useRouter();
+  const usuario = useSesion();
+
+  const esTrabajador = usuario?.rol === 'TRABAJADOR';
+  const esSupervisor = usuario?.rol === 'SUPERVISOR';
+  const esAdmin = usuario?.rol === 'ADMINISTRADOR';
 
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editando, setEditando] = useState<ProyectoItem | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
+  // Métricas personales del trabajador
+  const [progreso, setProgreso] = useState<ProgresoPersonalItem | null>(null);
+  const [sesionActiva, setSesionActiva] = useState<Sesion | null>(null);
+  const [cargandoProgreso, setCargandoProgreso] = useState(false);
+
   const pedir = useCallback(() => api.get<ProyectoItem[]>('/proyectos/mios'), []);
-  // Al volver desde el mapa de nodos, los proyectos ya estan en pantalla.
   const { datos, cargando, error, recargar: cargar } = useDatosCache('proyectos:mios', pedir);
   const proyectos = datos ?? [];
 
@@ -26,14 +44,41 @@ export default function Panel() {
     else setAviso('No se pudo conectar con el servidor.');
   }, [error, router]);
 
+  useEffect(() => {
+    if (esTrabajador) {
+      setCargandoProgreso(true);
+      Promise.all([
+        api.get<ProgresoPersonalItem>('/dashboard/mi-progreso').catch(() => null),
+        api.get<Sesion | null>('/sesiones/activa').catch(() => null),
+      ])
+        .then(([p, s]) => {
+          if (p) setProgreso(p);
+          if (s) setSesionActiva(s);
+        })
+        .finally(() => setCargandoProgreso(false));
+    }
+  }, [esTrabajador]);
+
   const proyecto = proyectos.find((p) => p.id === seleccionado) ?? null;
 
   function irATareas(p: ProyectoItem) {
     router.push(`/nodos?proyectoId=${p.id}&nombre=${encodeURIComponent(p.nombre)}`);
   }
 
+  const tituloVista = esTrabajador
+    ? 'Mis Avances / Mi Progreso'
+    : esSupervisor
+    ? 'Panel de Supervisión'
+    : 'Panel de Proyectos';
+
+  const subtituloVista = esTrabajador
+    ? 'Rendimiento personal, jornadas y proyectos asignados'
+    : esSupervisor
+    ? 'Resumen general de proyectos supervisados y flujo de trabajo del equipo'
+    : 'Gestión centralizada de proyectos, tareas y equipo';
+
   return (
-    <Marco activo="/panel" titulo="Proyectos">
+    <Marco activo="/panel" titulo={tituloVista} subtitulo={subtituloVista}>
       {aviso && (
         <p
           role="alert"
@@ -43,41 +88,216 @@ export default function Panel() {
         </p>
       )}
 
+      {/* -------------------- Banner de sesión activa para trabajador -------------------- */}
+      {esTrabajador && sesionActiva && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500" />
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+                Sesión de trabajo en marcha
+              </p>
+              <p className="text-sm font-bold text-white">{sesionActiva.actividad.titulo}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/nodos')}
+            className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 transition hover:bg-emerald-400"
+          >
+            Ir al cronómetro y tareas
+          </button>
+        </div>
+      )}
+
+      {/* -------------------- Tarjetas de rendimiento del Trabajador -------------------- */}
+      {esTrabajador && (
+        <div className="mb-8 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+              Métricas de Desempeño Personal
+            </h2>
+            {progreso && (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 font-medium text-emerald-300">
+                  {progreso.tareasCompletadas} completadas
+                </span>
+                <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 font-medium text-sky-300">
+                  {progreso.tareasEnProgreso} en progreso
+                </span>
+                <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 font-medium text-amber-300">
+                  {progreso.tareasPendientes} pendientes
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <TarjetaMetrica
+              etiqueta="Horas Semanales"
+              valor={cargandoProgreso ? '…' : formatearHoras(progreso?.segundosSemana ?? 0)}
+              subtexto="Semana en curso"
+              icono="⏱️"
+            />
+            <TarjetaMetrica
+              etiqueta="Horas Mensuales"
+              valor={cargandoProgreso ? '…' : formatearHoras(progreso?.segundosMes ?? 0)}
+              subtexto="Mes en curso"
+              icono="📅"
+            />
+            <TarjetaMetrica
+              etiqueta="Días Laborados"
+              valor={cargandoProgreso ? '…' : `${progreso?.diasLaborados ?? 0} días`}
+              subtexto="Presencia registrada"
+              icono="📍"
+            />
+            <TarjetaMetrica
+              etiqueta="Jornadas Completadas"
+              valor={cargandoProgreso ? '…' : `${progreso?.totalJornadas ?? 0}`}
+              subtexto="Turnos cerrados"
+              icono="✅"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* -------------------- Panel Superior de Supervisión -------------------- */}
+      {esSupervisor && (
+        <div className="mb-8 space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+            Resumen Operativo de Supervisión
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur">
+              <p className="text-xs text-slate-400">Proyectos Asignados / Supervisados</p>
+              <p className="mt-1 text-2xl font-bold text-white">{proyectos.length}</p>
+              <p className="mt-1 text-[11px] text-slate-500">Bajo supervisión activa</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur">
+              <p className="text-xs text-slate-400">Total Tareas del Equipo</p>
+              <p className="mt-1 text-2xl font-bold text-sky-400">
+                {proyectos.reduce((acc, p) => acc + p.totalTareas, 0)}
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">Distribuidas en proyectos</p>
+            </div>
+            <div className="flex flex-col justify-between rounded-2xl border border-sky-500/20 bg-sky-500/10 p-4 backdrop-blur">
+              <div>
+                <p className="text-xs font-semibold text-sky-300">Mapa de Nodos y Reportes</p>
+                <p className="mt-1 text-xs text-slate-300">
+                  Visualiza el árbol completo del equipo o revisa reportes de horas.
+                </p>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Link
+                  href="/reportes"
+                  className="rounded-lg bg-sky-500/20 px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:bg-sky-500/30"
+                >
+                  Ver Reportes
+                </Link>
+                <Link
+                  href="/chat"
+                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/5"
+                >
+                  Chat Equipo
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------- Sección de Proyectos -------------------- */}
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <h2 className="font-bold text-white">
+            {esTrabajador ? 'Mis Proyectos' : 'Proyectos del Sistema'}
+          </h2>
+          <p className="text-xs text-slate-400">
+            {esTrabajador
+              ? 'Proyectos donde tienes asignaciones o actividades vinculadas a tu perfil'
+              : 'Selecciona un proyecto para inspeccionar tareas o acceder a su árbol de nodos'}
+          </p>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-4 lg:flex-row">
         <section className="min-w-0 flex-1">
           {cargando ? (
             <p className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-sm text-slate-500">
               Cargando proyectos…
             </p>
+          ) : proyectos.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/15 p-12 text-center">
+              <p className="text-sm font-medium text-slate-400">
+                {esTrabajador
+                  ? 'No tienes proyectos asignados con tareas activas por el momento.'
+                  : 'No hay proyectos registrados.'}
+              </p>
+              {esAdmin && (
+                <button
+                  onClick={() => setModalAbierto(true)}
+                  className="mt-4 rounded-xl bg-sky-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-400"
+                >
+                  Crear primer proyecto
+                </button>
+              )}
+            </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {proyectos.map((p) => (
-                <button
+                <div
                   key={p.id}
                   onClick={() => setSeleccionado(p.id)}
-                  className={`rounded-2xl border bg-slate-900/60 p-4 text-left backdrop-blur transition hover:bg-slate-900 ${
+                  className={`group flex cursor-pointer flex-col justify-between rounded-2xl border bg-slate-900/60 p-4 backdrop-blur transition hover:bg-slate-900 ${
                     seleccionado === p.id
                       ? 'border-sky-400/50 ring-2 ring-sky-400/20'
                       : 'border-white/10'
                   }`}
                 >
-                  <p className="mb-1 font-semibold leading-snug text-white">{p.nombre}</p>
-                  <p className="mb-3 line-clamp-2 text-xs text-slate-500">
-                    {p.descripcion || 'Sin descripción'}
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-300">
-                    {p.totalTareas} tarea{p.totalTareas === 1 ? '' : 's'}
-                  </span>
-                </button>
+                  <div>
+                    <div className="mb-1 flex items-start justify-between gap-2">
+                      <p className="font-semibold leading-snug text-white">{p.nombre}</p>
+                      <span className="shrink-0 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-300">
+                        {p.totalTareas} {p.totalTareas === 1 ? 'tarea' : 'tareas'}
+                      </span>
+                    </div>
+                    <p className="mb-4 line-clamp-2 text-xs text-slate-500">
+                      {p.descripcion || 'Sin descripción'}
+                    </p>
+                  </div>
+
+                  {esTrabajador ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        irATareas(p);
+                      }}
+                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 py-2 text-xs font-semibold text-white shadow-sm transition hover:from-sky-400 hover:to-indigo-400"
+                    >
+                      <span>Iniciar tarea / Registrar avance</span>
+                      <span aria-hidden>→</span>
+                    </button>
+                  ) : (
+                    <div className="mt-2 flex items-center justify-between border-t border-white/5 pt-2 text-xs text-slate-400 group-hover:text-slate-200">
+                      <span>Ver detalles</span>
+                      <span>→</span>
+                    </div>
+                  )}
+                </div>
               ))}
 
-              <button
-                onClick={() => setModalAbierto(true)}
-                className="flex min-h-[7.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-white/15 p-4 text-slate-400 transition hover:border-sky-400/40 hover:text-sky-300"
-              >
-                <span className="text-2xl leading-none">+</span>
-                <span className="text-sm font-medium">Crear proyecto</span>
-              </button>
+              {/* Botón Crear Proyecto (solo para Administrador) */}
+              {esAdmin && (
+                <button
+                  onClick={() => setModalAbierto(true)}
+                  className="flex min-h-[7.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-white/15 p-4 text-slate-400 transition hover:border-sky-400/40 hover:text-sky-300"
+                >
+                  <span className="text-2xl leading-none">+</span>
+                  <span className="text-sm font-medium">Crear proyecto</span>
+                </button>
+              )}
             </div>
           )}
         </section>
@@ -87,12 +307,15 @@ export default function Panel() {
             <div className="mb-4 flex items-start justify-between gap-3">
               <h2 className="font-bold leading-snug text-white">{proyecto.nombre}</h2>
               <div className="flex shrink-0 items-center gap-2">
-                <button
-                  onClick={() => setEditando(proyecto)}
-                  className="rounded-lg border border-white/10 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/5 hover:text-white"
-                >
-                  Editar
-                </button>
+                {/* Opciones de edición (Administrador o Supervisor asignado) */}
+                {(esAdmin || esSupervisor) && (
+                  <button
+                    onClick={() => setEditando(proyecto)}
+                    className="rounded-lg border border-white/10 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/5 hover:text-white"
+                  >
+                    Editar
+                  </button>
+                )}
                 <button
                   onClick={() => setSeleccionado(null)}
                   aria-label="Cerrar detalle"
@@ -127,7 +350,7 @@ export default function Panel() {
               onClick={() => irATareas(proyecto)}
               className="mt-5 w-full rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 py-2.5 text-sm font-semibold text-white transition hover:from-sky-400 hover:to-indigo-400"
             >
-              Ir a las tareas
+              {esTrabajador ? 'Iniciar tarea / Registrar avance' : 'Ir al mapa de nodos'}
             </button>
           </aside>
         )}
@@ -154,6 +377,31 @@ export default function Panel() {
         />
       )}
     </Marco>
+  );
+}
+
+function TarjetaMetrica({
+  etiqueta,
+  valor,
+  subtexto,
+  icono,
+}: {
+  etiqueta: string;
+  valor: string;
+  subtexto: string;
+  icono: string;
+}) {
+  return (
+    <div className="flex flex-col justify-between rounded-2xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-slate-400">{etiqueta}</span>
+        <span className="text-base">{icono}</span>
+      </div>
+      <div className="mt-2">
+        <p className="text-2xl font-bold tracking-tight text-white">{valor}</p>
+        <p className="mt-0.5 text-[11px] text-slate-500">{subtexto}</p>
+      </div>
+    </div>
   );
 }
 

@@ -14,6 +14,7 @@ import PanelTarea from '@/components/nodos/PanelTarea';
 import { api, ErrorApi } from '@/lib/api';
 import { Derivacion, NodoActividad } from '@/lib/tipos';
 import { calcularArbol, Orientacion } from '@/lib/mapaMental';
+import { useSesion } from '@/lib/sesion';
 
 const RAIZ = 'raiz-proyecto';
 
@@ -55,6 +56,11 @@ export default function Pagina() {
 
 function Nodos() {
   const router = useRouter();
+  const sesionActual = useSesion();
+  const esTrabajador = sesionActual?.rol === 'TRABAJADOR';
+  const esSupervisor = sesionActual?.rol === 'SUPERVISOR';
+  const esAdmin = sesionActual?.rol === 'ADMINISTRADOR';
+
   const parametros = useSearchParams();
   const proyectoId = parametros.get('proyectoId');
   const nombreProyecto = parametros.get('nombre');
@@ -182,7 +188,7 @@ function Nodos() {
         expandido: expandidoRaiz,
         orientacion,
         onAlternar: alternarRaiz,
-        onAgregarHija: (titulo: string) => agregarTarea(titulo),
+        onAgregarHija: esTrabajador ? undefined : (titulo: string) => agregarTarea(titulo),
       };
       nodos.push({ id: RAIZ, type: 'raiz', position: posicionRaiz, data: datosRaiz });
     }
@@ -197,7 +203,7 @@ function Nodos() {
         expandido: expandido.has(a.id),
         orientacion,
         onAlternar: () => alternarNodo(a.id),
-        onAgregarHija: (titulo: string) => agregarTarea(titulo, a.id),
+        onAgregarHija: esTrabajador ? undefined : (titulo: string) => agregarTarea(titulo, a.id),
       };
       nodos.push({ id: a.id, type: 'tarea', position: { x: pos.x, y: pos.y }, data: datos });
 
@@ -222,7 +228,7 @@ function Nodos() {
     }
 
     return { nodos, aristas };
-  }, [actividades, nombreProyecto, expandidoRaiz, expandido, orientacion, agregarTarea]);
+  }, [actividades, nombreProyecto, expandidoRaiz, expandido, orientacion, agregarTarea, esTrabajador]);
 
   if (!proyectoId) {
     return (
@@ -244,7 +250,28 @@ function Nodos() {
   }
 
   return (
-    <Marco activo="/nodos" titulo="Mapa de nodos" subtitulo={`Tareas de "${nombreProyecto}"`}>
+    <Marco
+      activo="/nodos"
+      titulo="Mapa de nodos"
+      subtitulo={`Tareas de "${nombreProyecto}"`}
+      acciones={
+        <div className="flex items-center gap-2">
+          {esTrabajador ? (
+            <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-300">
+              Vista Trabajador · Tareas vinculadas a tu perfil
+            </span>
+          ) : esSupervisor ? (
+            <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-semibold text-purple-300">
+              Vista Supervisor · Flujo completo del equipo
+            </span>
+          ) : (
+            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
+              Vista Administrador · Control total
+            </span>
+          )}
+        </div>
+      }
+    >
       {aviso && (
         <p
           role="alert"
@@ -283,7 +310,7 @@ function Nodos() {
               nodes={nodos}
               edges={aristas}
               nodeTypes={TIPOS_NODO}
-              onConnect={alConectar}
+              onConnect={esTrabajador ? undefined : alConectar}
               onNodeClick={alHacerClicEnNodo}
               nodesDraggable={false}
               fitView
@@ -299,10 +326,9 @@ function Nodos() {
             </ReactFlow>
           </div>
           <p className="border-t border-white/10 px-4 py-2 text-[11px] text-slate-500">
-            Haz clic en el circulo del borde de una burbuja para desplegar sus tareas, pasa el
-            mouse sobre ella para agregarle una nueva, o arrastra desde su borde hacia otra para
-            unirlas. Con el selector de arriba eliges si el arbol crece hacia la derecha o hacia
-            abajo.
+            {esTrabajador
+              ? 'Haz clic en el círculo del borde de una burbuja para desplegar tareas, o haz clic en cualquier tarea para ver su detalle, cronometrar o subir evidencias.'
+              : 'Haz clic en el círculo del borde de una burbuja para desplegar sus tareas, pasa el mouse sobre ella para agregarle una nueva, o arrastra desde su borde hacia otra para unirlas. Con el selector de arriba eliges si el árbol crece hacia la derecha o hacia abajo.'}
           </p>
         </section>
 

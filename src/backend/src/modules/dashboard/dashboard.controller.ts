@@ -6,6 +6,8 @@ import { JwtAuthGuard } from '../../common/jwt-auth.guard';
 import { PermisosGuard } from '../../common/guards/permisos.guard';
 import { ExigirPermisos } from '../../common/decorators/permisos.decorator';
 
+import { Usuario, UsuarioActual } from '../../common/usuario-actual.decorator';
+
 @ApiTags('dashboard')
 @UseGuards(JwtAuthGuard, PermisosGuard)
 @Controller('dashboard')
@@ -16,5 +18,11 @@ export class DashboardController {
   @ExigirPermisos(PERMISOS.DASHBOARD_VER_RESUMEN)
   resumen() {
     return this.dashboard.resumen();
+  }
+
+  /** Indicadores individuales de rendimiento para el dashboard del trabajador. */
+  @Get('mi-progreso')
+  miProgreso(@Usuario() u: UsuarioActual) {
+    return this.dashboard.progresoPersonal(u.id);
   }
 }

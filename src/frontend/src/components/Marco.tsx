@@ -50,7 +50,7 @@ const SECCIONES: SeccionNav[] = [
   {
     href: '/usuarios',
     texto: 'Usuarios y Roles',
-    permisoRequerido: PERMISOS.USUARIOS_VER,
+    permisoRequerido: PERMISOS.USUARIOS_GESTIONAR,
   },
   {
     href: '/chat',
@@ -149,10 +149,17 @@ export default function Marco({
     );
   }
 
-  // Filtrado RBAC: los trabajadores solo ven los módulos que tienen autorizados
+  // Filtrado RBAC: los usuarios solo ven los módulos que tienen autorizados
   const seccionesVisibles = SECCIONES.filter((s) => {
     if (!s.permisoRequerido) return true;
     return usuario?.permisos?.includes(s.permisoRequerido) ?? false;
+  }).map((s) => {
+    if (s.href === '/panel') {
+      if (usuario?.rol === 'TRABAJADOR') return { ...s, texto: 'Mi Progreso' };
+      if (usuario?.rol === 'SUPERVISOR') return { ...s, texto: 'Supervisión' };
+      return { ...s, texto: 'Proyectos' };
+    }
+    return s;
   });
 
   const contenido = (
@@ -189,12 +196,21 @@ export default function Marco({
           ))}
 
           <div className="mt-auto border-t border-white/10 pt-3">
-            <p className="mb-2 px-3 text-xs font-medium text-slate-300">
-              {usuario?.nombreCompleto}
-            </p>
+            <div className="px-3">
+              <p className="truncate text-xs font-medium text-slate-300">
+                {usuario?.nombreCompleto}
+              </p>
+              <span className="mt-0.5 inline-block text-[10px] font-semibold text-sky-400">
+                {usuario?.rol === 'TRABAJADOR'
+                  ? 'Trabajador'
+                  : usuario?.rol === 'SUPERVISOR'
+                  ? 'Supervisor'
+                  : 'Administrador'}
+              </span>
+            </div>
             <button
               onClick={salir}
-              className="w-full rounded-xl px-3 py-2 text-left text-sm text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+              className="mt-2 w-full rounded-xl px-3 py-2 text-left text-sm text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
             >
               Cerrar sesion
             </button>
