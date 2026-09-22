@@ -1,8 +1,13 @@
 'use client';
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useSyncExternalStore } from 'react';
 import { PermisoCodigo, Rol } from './rbac';
 import { Usuario } from '@/lib/api';
+import {
+  leerCacheSesion,
+  leerCacheSesionServidor,
+  suscribirCacheSesion,
+} from './cacheSesion';
 
 /**
  * Usuario de la sesion, disponible para las pantallas.
@@ -11,8 +16,21 @@ import { Usuario } from '@/lib/api';
  */
 export const ContextoSesion = createContext<Usuario | null>(null);
 
+/**
+ * El Provider lo monta Marco, pero casi todas las paginas llaman a useSesion
+ * desde el componente que RENDERIZA a Marco (o sea, fuera del Provider), donde
+ * el contexto es null. Por eso, si no hay contexto, se lee la misma cache de
+ * sesion que alimenta a Marco: es la unica fuente de verdad y se actualiza
+ * apenas /auth/yo responde.
+ */
 export function useSesion(): Usuario | null {
-  return useContext(ContextoSesion);
+  const delContexto = useContext(ContextoSesion);
+  const cache = useSyncExternalStore(
+    suscribirCacheSesion,
+    leerCacheSesion,
+    leerCacheSesionServidor,
+  );
+  return delContexto ?? cache?.usuario ?? null;
 }
 
 export function useTienePermiso(permiso: PermisoCodigo): boolean {
