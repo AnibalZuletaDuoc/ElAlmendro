@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Marco from '@/components/Marco';
+import EquipoProyecto from '@/components/panel/EquipoProyecto';
 import { api, ErrorApi, ProgresoPersonalItem, ProyectoItem, Sesion } from '@/lib/api';
 import { useDatosCache } from '@/lib/cacheDatos';
 import { useSesion } from '@/lib/sesion';
@@ -329,6 +330,12 @@ export default function Panel() {
             <p className="mb-4 text-sm leading-relaxed text-slate-300">
               {proyecto.descripcion || 'Sin descripción'}
             </p>
+
+            <EquipoProyecto
+              key={proyecto.id}
+              proyectoId={proyecto.id}
+              puedeGestionar={esAdmin || esSupervisor}
+            />
 
             <Fila
               etiqueta="Creado el"

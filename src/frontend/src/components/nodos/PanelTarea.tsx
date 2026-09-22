@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Actividad, api, Evidencia, ErrorApi, Sesion, URL_API } from '@/lib/api';
 import { cronometro, duracion, ESTADOS, PRIORIDADES } from '@/lib/formato';
+import { PERMISOS } from '@/lib/rbac';
+import { useTienePermiso } from '@/lib/sesion';
+import ResponsableTarea from './ResponsableTarea';
 
 /**
  * Detalle de una tarea del mapa de nodos: cronometraje (comenzar, pausar,
@@ -28,6 +31,7 @@ export default function PanelTarea({
   const [subiendo, setSubiendo] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const inputArchivo = useRef<HTMLInputElement>(null);
+  const puedeGestionar = useTienePermiso(PERMISOS.ACTIVIDADES_GESTIONAR);
 
   async function cargar() {
     const [a, s, ev] = await Promise.all([
@@ -131,6 +135,15 @@ export default function PanelTarea({
           {aviso}
         </p>
       )}
+
+      <ResponsableTarea
+        actividad={actividad}
+        puedeGestionar={puedeGestionar}
+        onReasignada={async () => {
+          await cargar();
+          onCambio?.();
+        }}
+      />
 
       {/* ------------------------------ cronometro */}
       <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-center">

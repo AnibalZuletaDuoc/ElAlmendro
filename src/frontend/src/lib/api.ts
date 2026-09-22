@@ -141,8 +141,21 @@ export interface Actividad {
   minutosEstimados: number | null;
   segundosTrabajados: number;
   proyecto: { nombre: string };
-  responsable: { nombreCompleto: string };
+  responsable: { id: string; nombreCompleto: string };
   subtareas: Subtarea[];
+}
+
+/** Persona asignable: lo que devuelve /usuarios/trabajadores. */
+export interface PersonaRef {
+  id: string;
+  nombre: string;
+}
+
+export interface MiembroProyecto extends PersonaRef {
+  rol: string;
+  activo: boolean;
+  rolEnProyecto: 'LIDER' | 'MIEMBRO';
+  agregadoEn: string;
 }
 
 export interface Evidencia {

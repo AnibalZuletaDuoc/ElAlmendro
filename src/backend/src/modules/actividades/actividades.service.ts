@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CrearActividadDto } from './dto/crear-actividad.dto';
 import { ActualizarActividadDto } from './dto/actualizar-actividad.dto';
+import { ReasignarActividadDto } from './dto/reasignar-actividad.dto';
 
 /** US-03 y US-04 — consulta de actividades y su tiempo acumulado. */
 @Injectable()
@@ -42,7 +43,7 @@ export class ActividadesService {
       include: {
         proyecto: { select: { nombre: true } },
         subtareas: { orderBy: { orden: 'asc' } },
-        responsable: { select: { nombreCompleto: true } },
+        responsable: { select: { id: true, nombreCompleto: true } },
         comentarios: {
           orderBy: { creadoEn: 'desc' },
           include: { autor: { select: { nombreCompleto: true } } },
@@ -168,5 +169,65 @@ export class ActividadesService {
         responsable: { select: { nombreCompleto: true } },
       },
     });
+  }
+
+  /**
+   * US-06 — derivar la tarea a otra persona. Queda el traspaso registrado
+   * (quien, a quien, motivo) y la persona nueva pasa a ver la tarea en su
+   * mapa y el proyecto en su panel. Si no era miembro del proyecto, se la
+   * agrega, para que el equipo del proyecto refleje quien trabaja en el.
+   */
+  async reasignar(id: string, actorId: string, dto: ReasignarActividadDto) {
+    const actividad = await this.prisma.actividad.findFirst({
+      where: { id, eliminadoEn: null },
+      select: { id: true, proyectoId: true, responsableId: true },
+    });
+    if (!actividad) throw new NotFoundException('La actividad no existe.');
+    if (actividad.responsableId === dto.usuarioId) {
+      throw new BadRequestException('Esa persona ya es responsable de la tarea.');
+    }
+
+    const nuevo = await this.prisma.usuario.findUnique({
+      where: { id: dto.usuarioId },
+      select: { id: true, activo: true },
+    });
+    if (!nuevo) throw new NotFoundException('El usuario no existe.');
+    if (!nuevo.activo) throw new BadRequestException('El usuario esta desactivado.');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.actividad.update({
+        where: { id },
+        data: { responsableId: dto.usuarioId },
+      });
+      await tx.derivacion.create({
+        data: {
+          actividadId: id,
+          deUsuarioId: actividad.responsableId,
+          aUsuarioId: dto.usuarioId,
+          motivo: dto.motivo.trim(),
+        },
+      });
+      const yaMiembro = await tx.miembroProyecto.findUnique({
+        where: { proyectoId_usuarioId: { proyectoId: actividad.proyectoId, usuarioId: dto.usuarioId } },
+        select: { usuarioId: true },
+      });
+      if (!yaMiembro) {
+        await tx.miembroProyecto.create({
+          data: { proyectoId: actividad.proyectoId, usuarioId: dto.usuarioId },
+        });
+      }
+      await tx.registroAuditoria.create({
+        data: {
+          actorId,
+          accion: 'ACTIVIDAD_REASIGNADA',
+          tipoEntidad: 'Actividad',
+          entidadId: id,
+          valorAnterior: { responsableId: actividad.responsableId },
+          valorNuevo: { responsableId: dto.usuarioId, motivo: dto.motivo.trim() },
+        },
+      });
+    });
+
+    return this.detalle(id);
   }
 }
