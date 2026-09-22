@@ -80,7 +80,8 @@ npm run dev:web
 
 | Correo | Clave | Rol | Nombre |
 |---|---|---|---|
-| `admin@timeflow.cl` | `Timeflow2026!` | Administrador | Administrador TimeFlow |
+| `admin@admin.cl` | `12345` | Administrador | Administrador TimeFlow |
+| `supervisor@timeflow.cl` | `Timeflow2026!` | Supervisor | Supervisor |
 | `trabajador@timeflow.cl` | `Timeflow2026!` | Trabajador | Camila Soto |
 | `trabajador2@timeflow.cl` | `Timeflow2026!` | Trabajador | Diego Fuentes |
 
@@ -139,6 +140,7 @@ nunca podria iniciar sesion.
 
 ```
 .
+├── deploy/                  Despliegue en el VPS: scripts, Caddyfile, DEPLOY.md
 ├── docker/                  Infraestructura: compose, extensiones de BD, proxy
 │   ├── docker-compose.yml   PostgreSQL 16 y MinIO
 │   ├── db/init/             Extensiones cargadas al crear la base
@@ -242,3 +244,4 @@ git push -u origin feat/us-01-login
 | `docs/03-arquitectura/` | Arquitectura del sistema y stack tecnológico |
 | `docs/04-modelo-datos/` | Modelo de base de datos (DOC-BD-01) |
 | `docs/mockups/` | Mockups validados con el cliente |
+| `deploy/DEPLOY.md` | Despliegue en el VPS (timeflows.site): acceso, arquitectura, ciclo de actualizacion |

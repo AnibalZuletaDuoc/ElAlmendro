@@ -1,5 +1,8 @@
 # TimeFlow - servicios de infraestructura local (capas 4 y 5 del diagrama)
 # Levanta: PostgreSQL 16 (datos) y MinIO (evidencias / archivos)
+# BIND_ADDR: en desarrollo queda en 0.0.0.0; en produccion el .env lo fija en
+# 127.0.0.1 para que la base y el almacenamiento no queden expuestos a internet
+# (Docker publica puertos por encima de ufw, asi que el firewall no alcanza).
 services:
   db:
     image: postgres:16-alpine
@@ -12,7 +15,7 @@ services:
       TZ: UTC
       PGTZ: UTC
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${BIND_ADDR:-0.0.0.0}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - timeflow_db_data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
@@ -23,7 +26,7 @@ services:
       retries: 20
 
   storage:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: timeflow-storage
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -31,8 +34,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-timeflow}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-timeflow_dev}
     ports:
-      - "${MINIO_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "${BIND_ADDR:-0.0.0.0}:${MINIO_PORT:-9000}:9000"
+      - "${BIND_ADDR:-0.0.0.0}:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - timeflow_storage_data:/data
     healthcheck:
@@ -43,7 +46,7 @@ services:
 
   # Crea el bucket de evidencias una sola vez y termina.
   storage-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     depends_on:
       storage:
         condition: service_healthy
@@ -61,7 +64,7 @@ services:
     profiles: ["tools"]
     restart: unless-stopped
     ports:
-      - "${ADMINER_PORT:-8080}:8080"
+      - "${BIND_ADDR:-0.0.0.0}:${ADMINER_PORT:-8080}:8080"
     depends_on:
       db:
         condition: service_healthy

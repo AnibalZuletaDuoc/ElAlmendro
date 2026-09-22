@@ -235,14 +235,12 @@ export default function Panel() {
                   ? 'No tienes proyectos asignados con tareas activas por el momento.'
                   : 'No hay proyectos registrados.'}
               </p>
-              {esAdmin && (
-                <button
-                  onClick={() => setModalAbierto(true)}
-                  className="mt-4 rounded-xl bg-sky-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-400"
-                >
-                  Crear primer proyecto
-                </button>
-              )}
+              <button
+                onClick={() => setModalAbierto(true)}
+                className="mt-4 rounded-xl bg-sky-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-400"
+              >
+                Crear primer proyecto
+              </button>
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -288,16 +286,15 @@ export default function Panel() {
                 </div>
               ))}
 
-              {/* Botón Crear Proyecto (solo para Administrador) */}
-              {esAdmin && (
-                <button
-                  onClick={() => setModalAbierto(true)}
-                  className="flex min-h-[7.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-white/15 p-4 text-slate-400 transition hover:border-sky-400/40 hover:text-sky-300"
-                >
-                  <span className="text-2xl leading-none">+</span>
-                  <span className="text-sm font-medium">Crear proyecto</span>
-                </button>
-              )}
+              {/* Crear proyecto: todos los roles. Los trabajadores tienen
+                  autonomia para abrir proyectos; lo que no pueden es editarlos. */}
+              <button
+                onClick={() => setModalAbierto(true)}
+                className="flex min-h-[7.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-white/15 p-4 text-slate-400 transition hover:border-sky-400/40 hover:text-sky-300"
+              >
+                <span className="text-2xl leading-none">+</span>
+                <span className="text-sm font-medium">Crear proyecto</span>
+              </button>
             </div>
           )}
         </section>
@@ -307,7 +304,7 @@ export default function Panel() {
             <div className="mb-4 flex items-start justify-between gap-3">
               <h2 className="font-bold leading-snug text-white">{proyecto.nombre}</h2>
               <div className="flex shrink-0 items-center gap-2">
-                {/* Opciones de edición (Administrador o Supervisor asignado) */}
+                {/* Editar: solo Administrador o Supervisor; el trabajador crea pero no modifica. */}
                 {(esAdmin || esSupervisor) && (
                   <button
                     onClick={() => setEditando(proyecto)}

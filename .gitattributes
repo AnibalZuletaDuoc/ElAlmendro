@@ -1,0 +1,19 @@
+# Finales de linea: el VPS es Linux; bash y Caddy no toleran CRLF.
+* text=auto
+*.sh text eol=lf
+*.cjs text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sql text eol=lf
+*.md text eol=lf
+Caddyfile text eol=lf
+.env.example text eol=lf
+*.png binary
+*.jpg binary
+*.xlsx binary
+*.pdf binary
+*.docx binary

@@ -188,7 +188,7 @@ function Nodos() {
         expandido: expandidoRaiz,
         orientacion,
         onAlternar: alternarRaiz,
-        onAgregarHija: esTrabajador ? undefined : (titulo: string) => agregarTarea(titulo),
+        onAgregarHija: (titulo: string) => agregarTarea(titulo),
       };
       nodos.push({ id: RAIZ, type: 'raiz', position: posicionRaiz, data: datosRaiz });
     }
@@ -203,7 +203,7 @@ function Nodos() {
         expandido: expandido.has(a.id),
         orientacion,
         onAlternar: () => alternarNodo(a.id),
-        onAgregarHija: esTrabajador ? undefined : (titulo: string) => agregarTarea(titulo, a.id),
+        onAgregarHija: (titulo: string) => agregarTarea(titulo, a.id),
       };
       nodos.push({ id: a.id, type: 'tarea', position: { x: pos.x, y: pos.y }, data: datos });
 
@@ -228,7 +228,7 @@ function Nodos() {
     }
 
     return { nodos, aristas };
-  }, [actividades, nombreProyecto, expandidoRaiz, expandido, orientacion, agregarTarea, esTrabajador]);
+  }, [actividades, nombreProyecto, expandidoRaiz, expandido, orientacion, agregarTarea]);
 
   if (!proyectoId) {
     return (
@@ -327,7 +327,7 @@ function Nodos() {
           </div>
           <p className="border-t border-white/10 px-4 py-2 text-[11px] text-slate-500">
             {esTrabajador
-              ? 'Haz clic en el círculo del borde de una burbuja para desplegar tareas, o haz clic en cualquier tarea para ver su detalle, cronometrar o subir evidencias.'
+              ? 'Haz clic en el círculo del borde de una burbuja para desplegar tareas, pasa el mouse sobre ella para agregarle una nueva, o haz clic en cualquier tarea para ver su detalle, cronometrar o subir evidencias.'
               : 'Haz clic en el círculo del borde de una burbuja para desplegar sus tareas, pasa el mouse sobre ella para agregarle una nueva, o arrastra desde su borde hacia otra para unirlas. Con el selector de arriba eliges si el árbol crece hacia la derecha o hacia abajo.'}
           </p>
         </section>

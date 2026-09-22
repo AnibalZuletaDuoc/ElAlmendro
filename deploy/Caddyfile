@@ -1,0 +1,45 @@
+# TimeFlow - Caddy 2 en produccion (se instala en /etc/caddy/Caddyfile).
+#
+# Caddy emite y renueva solo el certificado TLS de Let's Encrypt: basta con
+# que el DNS de timeflows.site apunte a la IP del VPS y los puertos 80/443
+# esten abiertos. La API y la web corren con pm2 en el propio host, por eso
+# el reverse_proxy apunta a 127.0.0.1 y no a nombres de contenedor.
+
+www.timeflows.site {
+	redir https://timeflows.site{uri} permanent
+}
+
+timeflows.site {
+	encode gzip zstd
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# API REST (NestJS, prefijo global /api).
+	handle /api/* {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	# Socket.IO del chat: el namespace es /chat pero el transporte HTTP/WS
+	# viaja siempre por /socket.io/. Caddy hace el upgrade a websocket solo.
+	handle /socket.io/* {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	# Todo lo demas es la web Next.js.
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	log {
+		output file /var/log/caddy/timeflows.site.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+	}
+}

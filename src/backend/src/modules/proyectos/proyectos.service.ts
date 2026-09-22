@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CrearProyectoDto } from './dto/crear-proyecto.dto';
 import { ActualizarProyectoDto } from './dto/actualizar-proyecto.dto';
@@ -71,16 +71,14 @@ export class ProyectosService {
   }
 
   async actualizar(id: string, u: UsuarioActual, dto: ActualizarProyectoDto) {
-    const esAdmin = u.rol === 'ADMINISTRADOR';
+    // Cualquier rol puede crear proyectos, pero modificarlos queda reservado a
+    // administrador y supervisor: un trabajador que abrio un proyecto es su
+    // propietario y aun asi no debe poder cambiarlo.
+    if (u.rol === 'TRABAJADOR') {
+      throw new ForbiddenException('Solo un administrador o supervisor puede modificar proyectos.');
+    }
     const proyecto = await this.prisma.proyecto.findFirst({
-      where: {
-        id,
-        ...(esAdmin
-          ? {}
-          : {
-              OR: [{ propietarioId: u.id }, { miembros: { some: { usuarioId: u.id } } }],
-            }),
-      },
+      where: { id },
       select: { id: true },
     });
     if (!proyecto) throw new NotFoundException('El proyecto no existe.');

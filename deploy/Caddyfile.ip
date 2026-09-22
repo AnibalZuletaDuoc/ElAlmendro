@@ -1,0 +1,38 @@
+# TimeFlow - Caddy 2 SIN dominio (fase previa a que timeflows.site resuelva).
+#
+# update.sh instala este archivo en vez de deploy/Caddyfile cuando
+# NEXT_PUBLIC_API_URL apunta a una IP. Sirve HTTPS con un certificado interno
+# de Caddy (autofirmado): el navegador avisa "no es seguro" y hay que aceptar
+# la excepcion. Es necesario porque en produccion la cookie de sesion sale con
+# la marca `secure` y sin HTTPS el navegador la descarta.
+
+https://148.113.249.196 {
+	tls internal
+	encode gzip zstd
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	handle /socket.io/* {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	log {
+		output file /var/log/caddy/acceso.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+	}
+}
