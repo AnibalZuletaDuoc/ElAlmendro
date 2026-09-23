@@ -32,3 +32,6 @@ next-env.d.ts
 
 # TypeScript
 *.tsbuildinfo
+
+# Cobertura de pruebas (reporte generado)
+coverage/
