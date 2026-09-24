@@ -245,3 +245,11 @@ git push -u origin feat/us-01-login
 | `docs/04-modelo-datos/` | Modelo de base de datos (DOC-BD-01) |
 | `docs/mockups/` | Mockups validados con el cliente |
 | `deploy/DEPLOY.md` | Despliegue en el VPS (timeflows.site): acceso, arquitectura, ciclo de actualizacion |
+
+## Despliegue
+
+El sitio vive en https://timeflows.site. **Lo que entra en `main` se despliega
+solo**: el servidor revisa el repositorio cada minuto y se actualiza cuando
+aparece un commit nuevo. No hay que entrar al VPS para publicar.
+
+Ver `deploy/DEPLOY.md`, seccion 6.1.
