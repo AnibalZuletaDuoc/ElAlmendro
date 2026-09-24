@@ -8,6 +8,7 @@ import { PERMISOS, PermisoCodigo } from '@/lib/rbac';
 import { api, ErrorApi, Jornada, Usuario } from '@/lib/api';
 import { iniciales } from '@/lib/formato';
 import { ContextoSesion } from '@/lib/sesion';
+import AvisoVersion from './AvisoVersion';
 import { ProveedorChat } from '@/lib/chat';
 import { cerrarSocketChat } from '@/lib/socket';
 import InsigniaChat from '@/components/chat/InsigniaChat';
@@ -164,6 +165,7 @@ export default function Marco({
 
   const contenido = (
     <ContextoSesion.Provider value={usuario}>
+      <AvisoVersion />
       <div className="flex min-h-screen bg-slate-950 text-slate-100">
         <aside className="hidden w-60 shrink-0 flex-col gap-1 border-r border-white/10 bg-slate-900/60 p-4 md:flex">
           <div className="mb-4 flex items-center gap-3 px-2 py-2">

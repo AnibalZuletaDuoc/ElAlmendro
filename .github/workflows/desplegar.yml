@@ -1,0 +1,54 @@
+# Despliegue inmediato al VPS cuando entra algo en main.
+#
+# Requiere un secreto del repositorio (Settings -> Secrets and variables ->
+# Actions) llamado VPS_SSH_KEY, con la clave PRIVADA de despliegue. Sin ese
+# secreto el flujo no falla: se salta y avisa, porque el servidor igual se
+# actualiza solo con el timer de systemd (deploy/auto-deploy.sh).
+name: Desplegar en el VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: despliegue-produccion
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar que existe la clave
+        id: clave
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          if [ -z "$VPS_SSH_KEY" ]; then
+            echo "hay=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::Falta el secreto VPS_SSH_KEY; el servidor se actualizara solo por el timer (hasta 1 minuto)."
+          else
+            echo "hay=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Preparar SSH
+        if: steps.clave.outputs.hay == 'si'
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/despliegue
+          chmod 600 ~/.ssh/despliegue
+          ssh-keyscan -t ed25519 148.113.249.196 >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Desplegar
+        if: steps.clave.outputs.hay == 'si'
+        run: |
+          ssh -i ~/.ssh/despliegue -o BatchMode=yes ubuntu@148.113.249.196 \
+            "cd /var/www/timeflow && bash deploy/auto-deploy.sh"
+
+      - name: Comprobar salud
+        if: steps.clave.outputs.hay == 'si'
+        run: |
+          curl -fsS https://timeflows.site/api/salud
+          curl -fsS -o /dev/null -w 'WEB HTTP %{http_code}\n' https://timeflows.site/login

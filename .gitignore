@@ -32,3 +32,6 @@ next-env.d.ts
 
 # TypeScript
 *.tsbuildinfo
+
+# Lo escribe deploy/update.sh en cada despliegue.
+src/frontend/public/version.json

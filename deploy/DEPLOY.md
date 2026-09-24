@@ -197,6 +197,90 @@ Detalles que importan:
 - Si cambia `deploy/Caddyfile` en el repo, `update.sh` lo copia y hace
   `reload` de Caddy sin cortar conexiones.
 
+## 6.1 Despliegue automatico (push a main -> servidor actualizado)
+
+Desde que esto esta activo, nadie necesita entrar al VPS: **basta con hacer
+push a `main`**.
+
+```
+  DEV                     GitHub                     VPS (solo)
+  ───                     ──────                     ──────────
+  push a main      ->     origin/main avanza    ->   timer cada minuto detecta
+                                                     el commit y corre update.sh
+                                                          |
+                                                     pestanas abiertas avisan
+                                                     "Hay una version nueva"
+```
+
+### Como funciona
+
+Un timer de systemd (`timeflow-autodeploy.timer`) ejecuta cada minuto
+`deploy/auto-deploy.sh`, que hace `git fetch`, compara `HEAD` con
+`origin/main` y, si hay algo nuevo, hace `git reset --hard origin/main` y
+corre `deploy/update.sh`. Si no hay commits nuevos termina en milisegundos.
+
+Se eligio un timer y no un webhook de GitHub por una razon concreta: el
+repositorio pertenece a otra cuenta y el equipo no tiene permiso de
+administrador, que es lo que exige GitHub para crear webhooks o secretos.
+Preguntar cada minuto no necesita permiso de nadie.
+
+Detalles pensados para que no moleste:
+
+- **Sin despliegues encima de otro.** systemd no lanza la unidad si la
+  anterior sigue corriendo.
+- **Sin bucles de reconstruccion.** Si un commit falla al desplegar, queda
+  anotado en `~/.timeflow-autodeploy-fallido` y no se reintenta hasta que
+  alguien suba un commit nuevo.
+- **El `.env` no se toca.** No esta versionado, asi que `git reset --hard`
+  no lo alcanza.
+
+### Instalacion (una vez)
+
+```bash
+cd /var/www/timeflow && bash deploy/auto-deploy.sh --instalar
+```
+
+### Operacion
+
+```bash
+systemctl list-timers timeflow-autodeploy.timer   # cuando corre la proxima vez
+journalctl -u timeflow-autodeploy -f              # que desplego y con que resultado
+journalctl -u timeflow-autodeploy -n 50 --no-pager
+bash deploy/auto-deploy.sh                        # forzar una pasada ahora
+bash deploy/auto-deploy.sh --desinstalar          # apagar la automatizacion
+```
+
+### La pestana abierta se entera
+
+`update.sh` estampa el commit desplegado en dos lugares: dentro del bundle de
+la web (`NEXT_PUBLIC_VERSION`, fijo desde que se compilo) y en
+`/version.json`, que siempre refleja lo que corre ahora. El componente
+`AvisoVersion` compara ambos cada minuto y, si difieren, muestra una barra
+"Hay una version nueva · Actualizar ahora".
+
+No recarga sola a proposito: una recarga forzada podria cortar un cronometro
+en marcha o borrar un mensaje a medio escribir.
+
+### Si algun dia hay permiso de administrador en el repo
+
+`.github/workflows/desplegar.yml` ya esta listo para dar despliegues
+instantaneos (segundos en vez de hasta un minuto) con el registro visible en
+GitHub. Solo falta el secreto:
+
+1. Generar una clave dedicada y dejar la publica en el VPS:
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/timeflow_despliegue_ci -N ""
+   # pegar el contenido de timeflow_despliegue_ci.pub en
+   # /home/ubuntu/.ssh/authorized_keys del VPS
+   ```
+2. En GitHub: Settings -> Secrets and variables -> Actions -> New repository
+   secret, nombre `VPS_SSH_KEY`, contenido de la clave **privada**.
+
+Mientras el secreto no exista, el flujo se salta solo (no marca el push en
+rojo) y el timer sigue siendo quien despliega. Con el secreto puesto, el
+timer queda como red de seguridad: cuando Actions ya desplego, la pasada del
+minuto siguiente no encuentra nada nuevo y termina enseguida.
+
 ## 7. Operacion diaria
 
 ```bash
