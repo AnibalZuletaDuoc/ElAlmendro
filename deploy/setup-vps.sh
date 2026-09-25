@@ -9,7 +9,7 @@
 # hace el primer deploy (ver deploy/DEPLOY.md).
 set -euo pipefail
 
-REPO_URL="https://github.com/AnibalZuletaDuoc/ElAlmendro.git"
+REPO_URL="https://github.com/cristopherRamirezU/ElAlmendro.git"
 APP_DIR="/var/www/timeflow"
 USUARIO="ubuntu"
 

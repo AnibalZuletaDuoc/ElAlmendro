@@ -60,7 +60,7 @@ error) antes de levantar la infraestructura.
 ## Instrucciones para ejecutar el proyecto localmente
 
 ```bash
-git clone https://github.com/AnibalZuletaDuoc/ElAlmendro.git
+git clone https://github.com/cristopherRamirezU/ElAlmendro.git
 cd ElAlmendro
 cp .env.example .env
 npm run setup

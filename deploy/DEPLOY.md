@@ -13,7 +13,7 @@ el VPS.
 | IPv6 | `2607:5300:205:200::bce1` |
 | Usuario SSH | `ubuntu` (sudo sin contrasena, imagen estandar de OVH) |
 | Dominio | `timeflows.site` (+ `www` redirige al apex) |
-| Repositorio | `https://github.com/AnibalZuletaDuoc/ElAlmendro.git`, rama `main` |
+| Repositorio | `https://github.com/cristopherRamirezU/ElAlmendro.git`, rama `main` |
 | Clave SSH (PC de Cristopher) | `C:\Users\ItSma\.ssh\timeflow_vps_ed25519` (ed25519, sin passphrase) |
 
 ### DNS (en el panel del registrador de `timeflows.site`)
@@ -261,25 +261,33 @@ la web (`NEXT_PUBLIC_VERSION`, fijo desde que se compilo) y en
 No recarga sola a proposito: una recarga forzada podria cortar un cronometro
 en marcha o borrar un mensaje a medio escribir.
 
-### Si algun dia hay permiso de administrador en el repo
+### Despliegue instantaneo con GitHub Actions
 
-`.github/workflows/desplegar.yml` ya esta listo para dar despliegues
-instantaneos (segundos en vez de hasta un minuto) con el registro visible en
-GitHub. Solo falta el secreto:
+`.github/workflows/desplegar.yml` se dispara con cada push a `main` y entra al
+VPS por SSH a correr `deploy/auto-deploy.sh`. Tarda segundos en arrancar en
+vez de hasta un minuto, y el resultado queda visible en la pestana Actions.
 
-1. Generar una clave dedicada y dejar la publica en el VPS:
-   ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/timeflow_despliegue_ci -N ""
-   # pegar el contenido de timeflow_despliegue_ci.pub en
-   # /home/ubuntu/.ssh/authorized_keys del VPS
-   ```
-2. En GitHub: Settings -> Secrets and variables -> Actions -> New repository
-   secret, nombre `VPS_SSH_KEY`, contenido de la clave **privada**.
+Clave dedicada, distinta de la que usan las personas, para poder revocarla
+sola si hiciera falta:
 
-Mientras el secreto no exista, el flujo se salta solo (no marca el push en
-rojo) y el timer sigue siendo quien despliega. Con el secreto puesto, el
-timer queda como red de seguridad: cuando Actions ya desplego, la pasada del
-minuto siguiente no encuentra nada nuevo y termina enseguida.
+| Archivo | Donde vive |
+|---|---|
+| `~/.ssh/timeflow_ci_ed25519` | PC de Cristopher; su contenido es el secreto `VPS_SSH_KEY` en GitHub |
+| `~/.ssh/timeflow_ci_ed25519.pub` | en `/home/ubuntu/.ssh/authorized_keys` del VPS |
+
+Cargar el secreto (una vez, desde la PC que tiene la clave):
+
+```powershell
+Get-Content "$env:USERPROFILE\.ssh\timeflow_ci_ed25519" -Raw | gh secret set VPS_SSH_KEY --repo cristopherRamirezU/ElAlmendro
+```
+
+Si el secreto no existe, el flujo **no falla**: se salta con un aviso y el
+timer de systemd sigue siendo quien despliega. Con el secreto puesto, el timer
+queda como red de seguridad: cuando Actions ya desplego, la pasada del minuto
+siguiente no encuentra nada nuevo y termina enseguida.
+
+Revocar el acceso del CI: borrar esa linea de `authorized_keys` en el VPS y
+el secreto en GitHub.
 
 ## 7. Operacion diaria
 
