@@ -14,7 +14,9 @@
     "prisma:reglas": "dotenv -e ../../.env -- prisma db execute --file prisma/sql/reglas-integridad.sql --schema prisma/schema.prisma",
     "prisma:seed": "dotenv -e ../../.env -- ts-node prisma/seed.ts",
     "prisma:studio": "dotenv -e ../../.env -- prisma studio",
-    "usuario:crear": "dotenv -e ../../.env -- ts-node prisma/crear-usuario.ts"
+    "usuario:crear": "dotenv -e ../../.env -- ts-node prisma/crear-usuario.ts",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -36,10 +38,12 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "cookie-parser": "^1.4.7",
+    "exceljs": "^4.4.0",
     "helmet": "^8.0.0",
     "luxon": "^3.5.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdfkit": "^0.15.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
@@ -53,8 +57,10 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^20.16.0",
     "@types/passport-jwt": "^4.0.1",
+    "@types/pdfkit": "^0.17.6",
     "dotenv-cli": "^8.0.0",
     "jest": "^29.7.0",
+    "jest-mock-extended": "^3.0.7",
     "prisma": "^6.2.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
