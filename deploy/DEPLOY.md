@@ -281,7 +281,8 @@ Cargar el secreto (una vez, desde la PC que tiene la clave):
 Get-Content "$env:USERPROFILE\.ssh\timeflow_ci_ed25519" -Raw | gh secret set VPS_SSH_KEY --repo cristopherRamirezU/ElAlmendro
 ```
 
-Si el secreto no existe, el flujo **no falla**: se salta con un aviso y el
+El secreto `VPS_SSH_KEY` quedo cargado el 25-09-2026. Si algun dia no
+existiera, el flujo **no falla**: se salta con un aviso y el
 timer de systemd sigue siendo quien despliega. Con el secreto puesto, el timer
 queda como red de seguridad: cuando Actions ya desplego, la pasada del minuto
 siguiente no encuentra nada nuevo y termina enseguida.
