@@ -35,3 +35,5 @@ next-env.d.ts
 
 # Cobertura de pruebas (reporte generado)
 coverage/
+# Lo escribe deploy/update.sh en cada despliegue.
+src/frontend/public/version.json

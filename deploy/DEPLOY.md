@@ -13,7 +13,7 @@ el VPS.
 | IPv6 | `2607:5300:205:200::bce1` |
 | Usuario SSH | `ubuntu` (sudo sin contrasena, imagen estandar de OVH) |
 | Dominio | `timeflows.site` (+ `www` redirige al apex) |
-| Repositorio | `https://github.com/AnibalZuletaDuoc/ElAlmendro.git`, rama `main` |
+| Repositorio | `https://github.com/cristopherRamirezU/ElAlmendro.git`, rama `main` |
 | Clave SSH (PC de Cristopher) | `C:\Users\ItSma\.ssh\timeflow_vps_ed25519` (ed25519, sin passphrase) |
 
 ### DNS (en el panel del registrador de `timeflows.site`)
@@ -196,6 +196,99 @@ Detalles que importan:
   rebuildea siempre, asi que alcanza con volver a correrlo.
 - Si cambia `deploy/Caddyfile` en el repo, `update.sh` lo copia y hace
   `reload` de Caddy sin cortar conexiones.
+
+## 6.1 Despliegue automatico (push a main -> servidor actualizado)
+
+Desde que esto esta activo, nadie necesita entrar al VPS: **basta con hacer
+push a `main`**.
+
+```
+  DEV                     GitHub                     VPS (solo)
+  ───                     ──────                     ──────────
+  push a main      ->     origin/main avanza    ->   timer cada minuto detecta
+                                                     el commit y corre update.sh
+                                                          |
+                                                     pestanas abiertas avisan
+                                                     "Hay una version nueva"
+```
+
+### Como funciona
+
+Un timer de systemd (`timeflow-autodeploy.timer`) ejecuta cada minuto
+`deploy/auto-deploy.sh`, que hace `git fetch`, compara `HEAD` con
+`origin/main` y, si hay algo nuevo, hace `git reset --hard origin/main` y
+corre `deploy/update.sh`. Si no hay commits nuevos termina en milisegundos.
+
+Se eligio un timer y no un webhook de GitHub por una razon concreta: el
+repositorio pertenece a otra cuenta y el equipo no tiene permiso de
+administrador, que es lo que exige GitHub para crear webhooks o secretos.
+Preguntar cada minuto no necesita permiso de nadie.
+
+Detalles pensados para que no moleste:
+
+- **Sin despliegues encima de otro.** systemd no lanza la unidad si la
+  anterior sigue corriendo.
+- **Sin bucles de reconstruccion.** Si un commit falla al desplegar, queda
+  anotado en `~/.timeflow-autodeploy-fallido` y no se reintenta hasta que
+  alguien suba un commit nuevo.
+- **El `.env` no se toca.** No esta versionado, asi que `git reset --hard`
+  no lo alcanza.
+
+### Instalacion (una vez)
+
+```bash
+cd /var/www/timeflow && bash deploy/auto-deploy.sh --instalar
+```
+
+### Operacion
+
+```bash
+systemctl list-timers timeflow-autodeploy.timer   # cuando corre la proxima vez
+journalctl -u timeflow-autodeploy -f              # que desplego y con que resultado
+journalctl -u timeflow-autodeploy -n 50 --no-pager
+bash deploy/auto-deploy.sh                        # forzar una pasada ahora
+bash deploy/auto-deploy.sh --desinstalar          # apagar la automatizacion
+```
+
+### La pestana abierta se entera
+
+`update.sh` estampa el commit desplegado en dos lugares: dentro del bundle de
+la web (`NEXT_PUBLIC_VERSION`, fijo desde que se compilo) y en
+`/version.json`, que siempre refleja lo que corre ahora. El componente
+`AvisoVersion` compara ambos cada minuto y, si difieren, muestra una barra
+"Hay una version nueva · Actualizar ahora".
+
+No recarga sola a proposito: una recarga forzada podria cortar un cronometro
+en marcha o borrar un mensaje a medio escribir.
+
+### Despliegue instantaneo con GitHub Actions
+
+`.github/workflows/desplegar.yml` se dispara con cada push a `main` y entra al
+VPS por SSH a correr `deploy/auto-deploy.sh`. Tarda segundos en arrancar en
+vez de hasta un minuto, y el resultado queda visible en la pestana Actions.
+
+Clave dedicada, distinta de la que usan las personas, para poder revocarla
+sola si hiciera falta:
+
+| Archivo | Donde vive |
+|---|---|
+| `~/.ssh/timeflow_ci_ed25519` | PC de Cristopher; su contenido es el secreto `VPS_SSH_KEY` en GitHub |
+| `~/.ssh/timeflow_ci_ed25519.pub` | en `/home/ubuntu/.ssh/authorized_keys` del VPS |
+
+Cargar el secreto (una vez, desde la PC que tiene la clave):
+
+```powershell
+Get-Content "$env:USERPROFILE\.ssh\timeflow_ci_ed25519" -Raw | gh secret set VPS_SSH_KEY --repo cristopherRamirezU/ElAlmendro
+```
+
+El secreto `VPS_SSH_KEY` quedo cargado el 25-09-2026. Si algun dia no
+existiera, el flujo **no falla**: se salta con un aviso y el
+timer de systemd sigue siendo quien despliega. Con el secreto puesto, el timer
+queda como red de seguridad: cuando Actions ya desplego, la pasada del minuto
+siguiente no encuentra nada nuevo y termina enseguida.
+
+Revocar el acceso del CI: borrar esa linea de `authorized_keys` en el VPS y
+el secreto en GitHub.
 
 ## 7. Operacion diaria
 

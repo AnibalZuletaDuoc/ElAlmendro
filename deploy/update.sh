@@ -47,7 +47,12 @@ npm ci --include=dev --no-audit --no-fund
 echo "== [2/6] prisma generate + build"
 npm run db:generate
 npm run build -w @timeflow/api
+# El commit desplegado viaja en el bundle (NEXT_PUBLIC_* se incrusta en tiempo
+# de build) y tambien como archivo estatico: comparando ambos, una pestana
+# abierta se entera de que hay una version nueva.
+export NEXT_PUBLIC_VERSION="$(git rev-parse --short HEAD)"
 npm run build -w @timeflow/web
+echo "{\"version\":\"$NEXT_PUBLIC_VERSION\"}" > src/frontend/public/version.json
 
 echo "== [3/6] PostgreSQL y MinIO (docker compose)"
 docker compose -f docker/docker-compose.yml --env-file .env up -d db storage storage-init
