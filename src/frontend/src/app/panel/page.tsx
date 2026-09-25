@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Marco from '@/components/Marco';
 import EquipoProyecto from '@/components/panel/EquipoProyecto';
+import Cofre from '@/components/tesoro/Cofre';
+import CofreProyecto from '@/components/tesoro/CofreProyecto';
+import RejillaBolsas from '@/components/tesoro/RejillaBolsas';
 import { api, ErrorApi, ProgresoPersonalItem, ProyectoItem, Sesion } from '@/lib/api';
 import { useDatosCache } from '@/lib/cacheDatos';
 import { useSesion } from '@/lib/sesion';
@@ -26,6 +29,7 @@ export default function Panel() {
   const esAdmin = usuario?.rol === 'ADMINISTRADOR';
 
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
+  const [pestana, setPestana] = useState<'proyectos' | 'bolsas'>('proyectos');
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editando, setEditando] = useState<ProyectoItem | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -209,21 +213,84 @@ export default function Panel() {
         </div>
       )}
 
-      {/* -------------------- Sección de Proyectos -------------------- */}
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <h2 className="font-bold text-white">
-            {esTrabajador ? 'Mis Proyectos' : 'Proyectos del Sistema'}
-          </h2>
-          <p className="text-xs text-slate-400">
-            {esTrabajador
-              ? 'Proyectos donde tienes asignaciones o actividades vinculadas a tu perfil'
-              : 'Selecciona un proyecto para inspeccionar tareas o acceder a su árbol de nodos'}
-          </p>
-        </div>
+      {/* -------------------- Proyectos y bolsas, en dos pestañas -------------------- */}
+      <div className="mb-4 flex flex-wrap items-end gap-2 border-b border-white/10">
+        <button
+          onClick={() => setPestana('proyectos')}
+          className={`-mb-px border-b-2 px-3 py-2 text-sm transition ${
+            pestana === 'proyectos'
+              ? 'border-sky-400 font-semibold text-white'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          {esTrabajador ? 'Mis Proyectos' : 'Proyectos del Sistema'}
+          <span className="ml-2 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-slate-300">
+            {proyectos.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setPestana('bolsas')}
+          className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm transition ${
+            pestana === 'bolsas'
+              ? 'border-amber-400 font-semibold text-white'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          Bolsas del proyecto
+          {proyecto && (
+            <span className="max-w-[12rem] truncate rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+              {proyecto.nombre}
+            </span>
+          )}
+        </button>
+
+        <p className="ml-auto hidden pb-2 text-xs text-slate-400 sm:block">
+          {pestana === 'proyectos'
+            ? esTrabajador
+              ? 'Proyectos donde tienes asignaciones'
+              : 'Elige un proyecto para ver su cofre y su equipo'
+            : 'Cada tarea es una bolsa: llénala con sus monedas y guárdala en el cofre'}
+        </p>
       </div>
 
-      <div className="flex flex-col gap-4 lg:flex-row">
+      {/* -------------------- Pestaña: bolsas del proyecto -------------------- */}
+      {pestana === 'bolsas' &&
+        (proyecto ? (
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row">
+            <div className="min-w-0 flex-1">
+              <RejillaBolsas key={proyecto.id} proyectoId={proyecto.id} />
+            </div>
+            <aside className="w-full shrink-0 lg:w-72">
+              <CofreProyecto
+                proyecto={proyecto}
+                activo={pestana === 'bolsas'}
+                onCambio={cargar}
+              />
+              <button
+                onClick={() => irATareas(proyecto)}
+                className="w-full rounded-xl border border-white/10 py-2 text-xs font-semibold text-slate-300 transition hover:bg-white/5 hover:text-white"
+              >
+                Ver el mapa de nodos
+              </button>
+            </aside>
+          </div>
+        ) : (
+          <div className="mb-6 rounded-2xl border border-dashed border-white/15 p-12 text-center">
+            <p className="text-sm text-slate-400">
+              Elige primero un proyecto para ver sus bolsas.
+            </p>
+            <button
+              onClick={() => setPestana('proyectos')}
+              className="mt-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 px-4 py-2 text-xs font-bold text-slate-950 transition hover:from-amber-300 hover:to-amber-400"
+            >
+              Ir a los proyectos
+            </button>
+          </div>
+        ))}
+
+      {/* -------------------- Pestaña: proyectos -------------------- */}
+      <div className={`flex-col gap-4 lg:flex-row ${pestana === 'proyectos' ? 'flex' : 'hidden'}`}>
         <section className="min-w-0 flex-1">
           {cargando ? (
             <p className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-sm text-slate-500">
@@ -262,9 +329,40 @@ export default function Panel() {
                         {p.totalTareas} {p.totalTareas === 1 ? 'tarea' : 'tareas'}
                       </span>
                     </div>
-                    <p className="mb-4 line-clamp-2 text-xs text-slate-500">
+                    <p className="mb-2 line-clamp-2 text-xs text-slate-500">
                       {p.descripcion || 'Sin descripción'}
                     </p>
+
+                    {/* El cofre del proyecto: se llena con cada bolsa guardada. */}
+                    <div className="mb-3 flex items-center gap-3">
+                      <Cofre
+                        llenado={p.totalTareas > 0 ? p.tareasCompletadas / p.totalTareas : 0}
+                        tamano={74}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-lg font-bold text-amber-300">
+                            {p.totalTareas > 0
+                              ? Math.round((p.tareasCompletadas / p.totalTareas) * 100)
+                              : 0}
+                            %
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {p.tareasCompletadas}/{p.totalTareas} bolsas
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-300 transition-[width] duration-700"
+                            style={{
+                              width: `${
+                                p.totalTareas > 0 ? (p.tareasCompletadas / p.totalTareas) * 100 : 0
+                              }%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {esTrabajador ? (
@@ -324,6 +422,12 @@ export default function Panel() {
               </div>
             </div>
 
+            <CofreProyecto
+              proyecto={proyecto}
+              activo={pestana === 'proyectos'}
+              onCambio={cargar}
+            />
+
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
               Descripción
             </p>
@@ -351,8 +455,14 @@ export default function Panel() {
             />
 
             <button
+              onClick={() => setPestana('bolsas')}
+              className="mt-5 w-full rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 py-2.5 text-sm font-bold text-slate-950 transition hover:from-amber-300 hover:to-amber-400"
+            >
+              Ver las bolsas de este proyecto
+            </button>
+            <button
               onClick={() => irATareas(proyecto)}
-              className="mt-5 w-full rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 py-2.5 text-sm font-semibold text-white transition hover:from-sky-400 hover:to-indigo-400"
+              className="mt-2 w-full rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 py-2.5 text-sm font-semibold text-white transition hover:from-sky-400 hover:to-indigo-400"
             >
               {esTrabajador ? 'Iniciar tarea / Registrar avance' : 'Ir al mapa de nodos'}
             </button>

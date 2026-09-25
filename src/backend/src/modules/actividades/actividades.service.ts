@@ -1,8 +1,19 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CrearActividadDto } from './dto/crear-actividad.dto';
 import { ActualizarActividadDto } from './dto/actualizar-actividad.dto';
 import { ReasignarActividadDto } from './dto/reasignar-actividad.dto';
+import {
+  ActualizarSubtareaDto,
+  CambiarEstadoActividadDto,
+  CrearSubtareaDto,
+} from './dto/subtarea.dto';
+import { UsuarioActual } from '../../common/usuario-actual.decorator';
 
 /** US-03 y US-04 — consulta de actividades y su tiempo acumulado. */
 @Injectable()
@@ -224,6 +235,135 @@ export class ActividadesService {
           entidadId: id,
           valorAnterior: { responsableId: actividad.responsableId },
           valorNuevo: { responsableId: dto.usuarioId, motivo: dto.motivo.trim() },
+        },
+      });
+    });
+
+    return this.detalle(id);
+  }
+
+  // ------------------------------------------------------------- monedas
+  //
+  // Las subtareas son las monedas de la bolsa: la tarea se ve llena en la
+  // medida en que sus monedas estan marcadas. Sin monedas, el llenado lo da
+  // el estado de la propia tarea.
+
+  /**
+   * Solo el responsable de la tarea o alguien con permiso de gestion pueden
+   * tocar sus monedas: de otro modo cualquiera podria dar por terminado el
+   * trabajo de otra persona.
+   */
+  private async asegurarPuedeEditar(actividadId: string, u: UsuarioActual) {
+    const actividad = await this.prisma.actividad.findFirst({
+      where: { id: actividadId, eliminadoEn: null },
+      select: { id: true, responsableId: true },
+    });
+    if (!actividad) throw new NotFoundException('La actividad no existe.');
+
+    const puedeGestionar = u.permisos.includes('actividades:gestionar');
+    if (actividad.responsableId !== u.id && !puedeGestionar) {
+      throw new ForbiddenException('Esta tarea no esta asignada a ti.');
+    }
+    return actividad;
+  }
+
+  async crearSubtarea(actividadId: string, u: UsuarioActual, dto: CrearSubtareaDto) {
+    await this.asegurarPuedeEditar(actividadId, u);
+
+    const ultima = await this.prisma.subtarea.findFirst({
+      where: { actividadId },
+      orderBy: { orden: 'desc' },
+      select: { orden: true },
+    });
+
+    return this.prisma.subtarea.create({
+      data: {
+        actividadId,
+        titulo: dto.titulo.trim(),
+        orden: (ultima?.orden ?? -1) + 1,
+      },
+      select: { id: true, titulo: true, completada: true, orden: true },
+    });
+  }
+
+  async actualizarSubtarea(subtareaId: string, u: UsuarioActual, dto: ActualizarSubtareaDto) {
+    const subtarea = await this.prisma.subtarea.findUnique({
+      where: { id: subtareaId },
+      select: { id: true, actividadId: true },
+    });
+    if (!subtarea) throw new NotFoundException('La microtarea no existe.');
+    await this.asegurarPuedeEditar(subtarea.actividadId, u);
+
+    return this.prisma.subtarea.update({
+      where: { id: subtareaId },
+      data: {
+        ...(dto.completada !== undefined ? { completada: dto.completada } : {}),
+        ...(dto.titulo !== undefined ? { titulo: dto.titulo.trim() } : {}),
+      },
+      select: { id: true, titulo: true, completada: true, orden: true },
+    });
+  }
+
+  async eliminarSubtarea(subtareaId: string, u: UsuarioActual) {
+    const subtarea = await this.prisma.subtarea.findUnique({
+      where: { id: subtareaId },
+      select: { id: true, actividadId: true },
+    });
+    if (!subtarea) throw new NotFoundException('La microtarea no existe.');
+    await this.asegurarPuedeEditar(subtarea.actividadId, u);
+
+    await this.prisma.subtarea.delete({ where: { id: subtareaId } });
+    return { ok: true };
+  }
+
+  /**
+   * Comprueba que la tarea tenga con que respaldar el trabajo hecho.
+   *
+   * La evidencia solo puede adjuntarse mientras la tarea sigue abierta —el
+   * modulo de evidencias rechaza los archivos de una tarea completada—, de
+   * modo que si se permitiera cerrarla sin ninguna, el respaldo quedaria
+   * imposible para siempre.
+   */
+  async exigirEvidencia(actividadId: string) {
+    const adjuntos = await this.prisma.evidencia.count({ where: { actividadId } });
+    if (adjuntos === 0) {
+      throw new BadRequestException(
+        'Adjunta al menos una evidencia del trabajo hecho antes de dar la tarea por terminada.',
+      );
+    }
+  }
+
+  /**
+   * Guarda la bolsa en el cofre (COMPLETADA) o la saca de vuelta.
+   *
+   * No se puede dar por terminada una tarea con el cronometro corriendo: el
+   * tiempo quedaria colgando en una sesion abierta de una tarea ya cerrada.
+   */
+  async cambiarEstado(id: string, u: UsuarioActual, dto: CambiarEstadoActividadDto) {
+    const actividad = await this.asegurarPuedeEditar(id, u);
+
+    if (dto.estado === 'COMPLETADA') {
+      const sesionViva = await this.prisma.sesionTrabajo.findFirst({
+        where: { actividadId: id, estado: { in: ['ACTIVA', 'PAUSADA'] } },
+        select: { id: true },
+      });
+      if (sesionViva) {
+        throw new BadRequestException(
+          'Cierra primero el cronometro de esta tarea para guardarla en el cofre.',
+        );
+      }
+      await this.exigirEvidencia(id);
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.actividad.update({ where: { id }, data: { estado: dto.estado } });
+      await tx.registroAuditoria.create({
+        data: {
+          actorId: u.id,
+          accion: 'ACTIVIDAD_CAMBIO_ESTADO',
+          tipoEntidad: 'Actividad',
+          entidadId: id,
+          valorNuevo: { estado: dto.estado, responsableId: actividad.responsableId },
         },
       });
     });

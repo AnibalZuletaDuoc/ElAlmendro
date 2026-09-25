@@ -40,6 +40,9 @@ export class NodosService {
         posicionNodo: true,
         responsableId: true,
         responsable: { select: { id: true, nombreCompleto: true } },
+        // Monedas de cada bolsa: con ellas la vista dibuja cuanto lleva
+        // llena la tarea sin pedir el detalle de una en una.
+        subtareas: { select: { completada: true } },
       },
     });
 
@@ -61,6 +64,13 @@ export class NodosService {
       },
     });
 
-    return { actividades, derivaciones };
+    return {
+      actividades: actividades.map(({ subtareas, ...a }) => ({
+        ...a,
+        monedas: subtareas.length,
+        monedasListas: subtareas.filter((m) => m.completada).length,
+      })),
+      derivaciones,
+    };
   }
 }

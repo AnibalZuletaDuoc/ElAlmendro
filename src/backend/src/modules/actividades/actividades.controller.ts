@@ -1,9 +1,24 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ActividadesService } from './actividades.service';
 import { CrearActividadDto } from './dto/crear-actividad.dto';
 import { ActualizarActividadDto } from './dto/actualizar-actividad.dto';
 import { ReasignarActividadDto } from './dto/reasignar-actividad.dto';
+import {
+  ActualizarSubtareaDto,
+  CambiarEstadoActividadDto,
+  CrearSubtareaDto,
+} from './dto/subtarea.dto';
 import { PERMISOS } from '../../common/rbac';
 import { PermisosGuard } from '../../common/guards/permisos.guard';
 import { ExigirPermisos } from '../../common/decorators/permisos.decorator';
@@ -26,6 +41,47 @@ export class ActividadesController {
   @Post()
   crear(@Usuario() u: UsuarioActual, @Body() dto: CrearActividadDto) {
     return this.actividades.crear(u.id, dto);
+  }
+
+  /**
+   * Monedas de la bolsa (microtareas). Se declaran antes que las rutas con
+   * ':id' porque Nest resuelve por orden: "subtareas" seria tomado como el
+   * identificador de una actividad.
+   */
+  @Patch('subtareas/:subtareaId')
+  actualizarSubtarea(
+    @Param('subtareaId', ParseUUIDPipe) subtareaId: string,
+    @Usuario() u: UsuarioActual,
+    @Body() dto: ActualizarSubtareaDto,
+  ) {
+    return this.actividades.actualizarSubtarea(subtareaId, u, dto);
+  }
+
+  @Delete('subtareas/:subtareaId')
+  eliminarSubtarea(
+    @Param('subtareaId', ParseUUIDPipe) subtareaId: string,
+    @Usuario() u: UsuarioActual,
+  ) {
+    return this.actividades.eliminarSubtarea(subtareaId, u);
+  }
+
+  @Post(':id/subtareas')
+  crearSubtarea(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Usuario() u: UsuarioActual,
+    @Body() dto: CrearSubtareaDto,
+  ) {
+    return this.actividades.crearSubtarea(id, u, dto);
+  }
+
+  /** Guarda la bolsa en el cofre, o la saca para seguir trabajandola. */
+  @Patch(':id/estado')
+  cambiarEstado(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Usuario() u: UsuarioActual,
+    @Body() dto: CambiarEstadoActividadDto,
+  ) {
+    return this.actividades.cambiarEstado(id, u, dto);
   }
 
   @Get(':id')

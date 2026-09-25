@@ -20,6 +20,7 @@ import {
   suscribirCacheSesion,
 } from '@/lib/cacheSesion';
 import { precalentarRutas } from '@/lib/precalentar';
+import { limpiarBolsaAbierta } from '@/lib/tesoro';
 
 interface SeccionNav {
   href: string;
@@ -129,6 +130,7 @@ export default function Marco({
   async function salir() {
     cerrarSocketChat();
     limpiarCacheSesion();
+    limpiarBolsaAbierta();
     await api.post('/auth/logout');
     router.replace('/login');
   }
@@ -262,5 +264,14 @@ export default function Marco({
 
   // El socket de chat solo se abre con sesion valida: sin usuario no hay
   // presencia que anunciar ni cookie que el gateway pueda verificar.
-  return usuario ? <ProveedorChat usuarioId={usuario.id}>{contenido}</ProveedorChat> : contenido;
+  const conChat = usuario ? (
+    <ProveedorChat usuarioId={usuario.id}>{contenido}</ProveedorChat>
+  ) : (
+    contenido
+  );
+
+  // El proveedor del tesoro vive en el layout raiz, no aqui: cada pantalla
+  // monta su propio Marco, de modo que si la ventana de la bolsa colgara de
+  // este componente se cerraria en cada navegacion.
+  return conChat;
 }

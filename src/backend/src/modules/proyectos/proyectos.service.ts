@@ -37,19 +37,23 @@ export class ProyectosService {
         descripcion: true,
         estado: true,
         creadoEn: true,
-        _count: {
-          select: { actividades: { where: { eliminadoEn: null } } },
+        actividades: {
+          where: { eliminadoEn: null },
+          select: { estado: true },
         },
       },
     });
 
+    // El cofre se llena con las tareas ya guardadas: por eso ademas del total
+    // viaja cuantas estan completadas.
     return proyectos.map((p) => ({
       id: p.id,
       nombre: p.nombre,
       descripcion: p.descripcion,
       estado: p.estado,
       creadoEn: p.creadoEn,
-      totalTareas: p._count.actividades,
+      totalTareas: p.actividades.length,
+      tareasCompletadas: p.actividades.filter((a) => a.estado === 'COMPLETADA').length,
     }));
   }
 
@@ -72,7 +76,7 @@ export class ProyectosService {
       },
     });
 
-    return { ...proyecto, totalTareas: 0 };
+    return { ...proyecto, totalTareas: 0, tareasCompletadas: 0 };
   }
 
   async actualizar(id: string, u: UsuarioActual, dto: ActualizarProyectoDto) {
@@ -103,6 +107,10 @@ export class ProyectosService {
         _count: {
           select: { actividades: { where: { eliminadoEn: null } } },
         },
+        actividades: {
+          where: { eliminadoEn: null },
+          select: { estado: true },
+        },
       },
     });
 
@@ -113,6 +121,7 @@ export class ProyectosService {
       estado: actualizado.estado,
       creadoEn: actualizado.creadoEn,
       totalTareas: actualizado._count.actividades,
+      tareasCompletadas: actualizado.actividades.filter((a) => a.estado === 'COMPLETADA').length,
     };
   }
 

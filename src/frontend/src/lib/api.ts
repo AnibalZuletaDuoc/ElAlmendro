@@ -130,6 +130,8 @@ export interface ProyectoItem {
   estado: string;
   creadoEn: string;
   totalTareas: number;
+  /** Tareas ya guardadas en el cofre: es el llenado del proyecto. */
+  tareasCompletadas: number;
 }
 
 export interface Actividad {

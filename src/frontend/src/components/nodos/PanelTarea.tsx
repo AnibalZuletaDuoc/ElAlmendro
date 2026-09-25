@@ -6,6 +6,8 @@ import { cronometro, duracion, ESTADOS, PRIORIDADES } from '@/lib/formato';
 import { PERMISOS } from '@/lib/rbac';
 import { useTienePermiso } from '@/lib/sesion';
 import ResponsableTarea from './ResponsableTarea';
+import BolsaOro from '@/components/tesoro/BolsaOro';
+import { useTesoro } from '@/lib/tesoro';
 
 /**
  * Detalle de una tarea del mapa de nodos: cronometraje (comenzar, pausar,
@@ -32,6 +34,7 @@ export default function PanelTarea({
   const [aviso, setAviso] = useState<string | null>(null);
   const inputArchivo = useRef<HTMLInputElement>(null);
   const puedeGestionar = useTienePermiso(PERMISOS.ACTIVIDADES_GESTIONAR);
+  const { abrirBolsa, version } = useTesoro();
 
   async function cargar() {
     const [a, s, ev] = await Promise.all([
@@ -52,6 +55,12 @@ export default function PanelTarea({
     cargar().catch(() => setAviso('No se pudo cargar la tarea.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actividadId]);
+
+  useEffect(() => {
+    if (version === 0) return;
+    cargar().catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
 
   useEffect(() => {
     if (sesion?.actividad.id !== actividadId || sesion.estado !== 'ACTIVA') return;
@@ -98,11 +107,30 @@ export default function PanelTarea({
   const estado = ESTADOS[actividad.estado] ?? ESTADOS.PENDIENTE;
   const enEstaTarea = sesion?.actividad.id === actividadId;
   const terminada = actividad.estado === 'COMPLETADA';
+  const monedasListas = actividad.subtareas.filter((m) => m.completada).length;
+  // El servidor exige respaldo para cerrar como completada; aqui se avisa
+  // antes de intentarlo, porque despues ya no se pueden adjuntar archivos.
+  const hayRespaldo = evidencias.length > 0;
+  // Sin monedas el llenado lo marca el estado de la tarea.
+  const llenadoBolsa = terminada
+    ? 1
+    : actividad.subtareas.length > 0
+      ? monedasListas / actividad.subtareas.length
+      : actividad.estado === 'EN_PROGRESO'
+        ? 0.45
+        : 0.08;
 
   return (
     <div>
       <div className="mb-3 flex items-start justify-between gap-3">
         <h2 className="font-bold leading-snug text-white">{actividad.titulo}</h2>
+        <button
+          onClick={() => abrirBolsa({ id: actividadId, titulo: actividad.titulo })}
+          title="Abrir en una ventana flotante que puedes mover y minimizar"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-amber-500/40 text-amber-300 transition hover:bg-amber-500/10"
+        >
+          ⤢
+        </button>
         <button
           onClick={onCerrar}
           aria-label="Cerrar detalle"
@@ -125,6 +153,29 @@ export default function PanelTarea({
           {actividad.prioridad}
         </span>
       </div>
+
+      {/* La bolsa de esta tarea: se llena con sus monedas (microtareas). */}
+      <button
+        onClick={() => abrirBolsa({ id: actividadId, titulo: actividad.titulo })}
+        className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3 text-left transition hover:bg-amber-500/10"
+      >
+        <BolsaOro llenado={llenadoBolsa} tamano={56} guardada={terminada} />
+        <span className="min-w-0 flex-1">
+          <span className="block text-lg font-bold text-amber-300">
+            {Math.round(llenadoBolsa * 100)}%
+          </span>
+          <span className="block text-[11px] text-slate-400">
+            {actividad.subtareas.length > 0
+              ? `${monedasListas} de ${actividad.subtareas.length} monedas`
+              : terminada
+                ? 'Guardada en el cofre'
+                : 'Sin monedas todavia'}
+          </span>
+          <span className="mt-0.5 block text-[10px] text-amber-300/70">
+            Abrir en ventana flotante →
+          </span>
+        </span>
+      </button>
 
       {actividad.descripcion && (
         <p className="mb-4 text-sm leading-relaxed text-slate-300">{actividad.descripcion}</p>
@@ -206,6 +257,12 @@ export default function PanelTarea({
                 placeholder="Nota de cierre (obligatoria si queda inconclusa)"
                 className="mb-2 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-sky-400"
               />
+              {!hayRespaldo && (
+                <p className="mb-2 rounded-lg border border-sky-500/25 bg-sky-500/10 px-2.5 py-1.5 text-[11px] leading-relaxed text-sky-200">
+                  Para darla por completada adjunta primero una evidencia del
+                  trabajo hecho: despues del cierre ya no se aceptan archivos.
+                </p>
+              )}
               <div className="flex gap-2">
                 <button
                   onClick={() =>
@@ -218,7 +275,13 @@ export default function PanelTarea({
                       setNota('');
                     })
                   }
-                  className="flex-1 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                  disabled={!hayRespaldo}
+                  title={
+                    hayRespaldo
+                      ? 'Cerrar la tarea como completada'
+                      : 'Adjunta una evidencia del trabajo hecho para poder completarla'
+                  }
+                  className="flex-1 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Completada
                 </button>

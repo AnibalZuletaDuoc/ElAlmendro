@@ -41,6 +41,9 @@ export interface NodoActividad {
   actividadPadreId: string | null;
   posicionNodo: { x: number; y: number } | null;
   responsable: { nombreCompleto: string };
+  /** Monedas (microtareas) de la bolsa y cuantas estan marcadas. */
+  monedas: number;
+  monedasListas: number;
 }
 
 export interface Derivacion {

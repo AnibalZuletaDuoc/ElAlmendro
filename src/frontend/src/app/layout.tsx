@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { ProveedorTesoro } from '@/lib/tesoro';
+import VentanaBolsa from '@/components/tesoro/VentanaBolsa';
 
 export const metadata: Metadata = {
   title: 'TimeFlow',
@@ -37,7 +39,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es-CL">
       <body>
         <script dangerouslySetInnerHTML={{ __html: FILTRO_EXTENSIONES }} />
-        {children}
+        {/* El tesoro envuelve toda la aplicacion desde la raiz: asi la ventana
+            de la bolsa no se desmonta al navegar entre pantallas. */}
+        <ProveedorTesoro>
+          {children}
+          <VentanaBolsa />
+        </ProveedorTesoro>
       </body>
     </html>
   );

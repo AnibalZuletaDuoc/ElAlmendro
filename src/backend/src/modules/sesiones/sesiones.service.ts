@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { CerrarSesionDto, IniciarSesionDto } from './dto/sesion.dto';
+import { ActividadesService } from '../actividades/actividades.service';
 
 /**
  * Cronometraje autoritativo del servidor.
@@ -15,7 +16,10 @@ import { CerrarSesionDto, IniciarSesionDto } from './dto/sesion.dto';
  */
 @Injectable()
 export class SesionesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly actividades: ActividadesService,
+  ) {}
 
   /** Sesion viva del trabajador, con su actividad y sus tramos. */
   async activa(usuarioId: string) {
@@ -153,6 +157,12 @@ export class SesionesService {
       throw new BadRequestException(
         'Explica por que la dejas inconclusa antes de cerrarla.',
       );
+    }
+
+    // Dar el trabajo por terminado exige respaldo. Una sesion inconclusa no:
+    // justamente lo que dice es que el trabajo todavia no esta hecho.
+    if (dto.desenlace === 'COMPLETADA') {
+      await this.actividades.exigirEvidencia(sesion.actividadId);
     }
 
     await this.prisma.$transaction(async (tx) => {
